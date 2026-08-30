@@ -1,0 +1,363 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum VisibilidadeProntuario {
+  PRIVADO
+  ESPECIALIDADE
+  GESTORAS
+  EQUIPE_CLINICA
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model agendamentos {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  beneficiaria_id   String?          @db.Uuid
+  profissional_id   String           @db.Uuid
+  encaminhamento_id String?          @db.Uuid
+  data_hora         DateTime         @db.Timestamp(6)
+  status            String?          @default("AGENDADO") @db.VarChar
+  observacoes       String?
+  criado_em         DateTime?        @default(now()) @db.Timestamp(6)
+  beneficiarias     beneficiarias?   @relation(fields: [beneficiaria_id], references: [id], onUpdate: NoAction)
+  encaminhamentos   encaminhamentos? @relation(fields: [encaminhamento_id], references: [id], onUpdate: NoAction)
+  usuarios          usuarios         @relation(fields: [profissional_id], references: [id], onUpdate: NoAction)
+  prontuarios       prontuarios?
+}
+
+model bazares {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  data                DateTime              @db.Date
+  local               String?               @db.VarChar
+  total_arrecadado    Decimal?              @db.Decimal
+  observacoes         String?
+  registrado_por      String?               @db.Uuid
+  criado_em           DateTime?             @default(now()) @db.Timestamp(6)
+  descricao           String?
+  horario_fim         DateTime?             @db.Time(6)
+  horario_inicio      DateTime?             @db.Time(6)
+  nome                String                @db.VarChar
+  bazar_profissionais bazar_profissionais[]
+  usuarios            usuarios?             @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
+}
+
+model bazar_profissionais {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bazar_id        String   @db.Uuid
+  profissional_id String   @db.Uuid
+  bazares         bazares  @relation(fields: [bazar_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios        usuarios @relation("bazar_profissionais", fields: [profissional_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([bazar_id, profissional_id])
+}
+
+/// Exclusão de beneficiária é SEMPRE soft delete (`deletado_em`). As relações
+/// filhas que guardam histórico clínico (triagens, prontuários) são Restrict
+/// de propósito: um delete físico deve falhar em vez de levar o histórico junto.
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model beneficiarias {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                String          @db.VarChar
+  cpf                 String?         @unique @db.VarChar
+  data_nascimento     DateTime?       @db.Date
+  telefone            String?         @db.VarChar
+  endereco            String?         @db.VarChar
+  tipo                String?         @db.VarChar
+  responsavel_id      String?         @db.Uuid
+  status              String?         @db.VarChar
+  criado_em           DateTime?       @default(now()) @db.Timestamp(6)
+  deletado_em         DateTime?       @db.Timestamp(6)
+  estado_civil        String?         @db.VarChar
+  escolaridade        String?         @db.VarChar
+  raca                String?         @db.VarChar
+  ocupacao            String?         @db.VarChar
+  empregada           Boolean?
+  agendamentos        agendamentos[]
+  beneficiarias       beneficiarias?  @relation("beneficiariasTobeneficiarias", fields: [responsavel_id], references: [id], onUpdate: NoAction)
+  other_beneficiarias beneficiarias[] @relation("beneficiariasTobeneficiarias")
+  prontuarios         prontuarios[]
+  triagens            triagens[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model doacoes {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  doador_id      String?   @db.Uuid
+  tipo           String    @db.VarChar
+  valor          Decimal?  @db.Decimal
+  quantidade     String?   @db.VarChar
+  data           DateTime  @db.Date
+  observacao     String?
+  registrado_por String?   @db.Uuid
+  criado_em      DateTime? @default(now()) @db.Timestamp(6)
+  doadores       doadores? @relation(fields: [doador_id], references: [id], onUpdate: NoAction)
+  usuarios       usuarios? @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
+  campanha_id        String?              @db.Uuid
+  campanhas_doacoes  campanhas_doacoes?   @relation(fields: [campanha_id], references: [id], onUpdate: NoAction)
+}
+
+model campanhas_doacoes {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome         String    @db.VarChar
+  descricao    String?
+  meta_valor   Decimal?  @db.Decimal
+  criado_em    DateTime? @default(now()) @db.Timestamp(6)
+  encerrada_em DateTime? @db.Timestamp(6)
+  doacoes      doacoes[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model doadores {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome           String    @db.VarChar
+  tipo           String?   @db.VarChar
+  telefone       String?   @db.VarChar
+  email          String?   @db.VarChar
+  registrado_por String?   @db.Uuid
+  criado_em      DateTime? @default(now()) @db.Timestamp(6)
+  deletado_em    DateTime? @db.Timestamp(6)
+  doacoes        doacoes[]
+  usuarios       usuarios? @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model encaminhamentos {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  triagem_id    String         @db.Uuid
+  especialidade String         @db.VarChar
+  status        String?        @default("PENDENTE") @db.VarChar
+  criado_em     DateTime?      @default(now()) @db.Timestamp(6)
+  agendamentos  agendamentos[]
+  triagens      triagens       @relation(fields: [triagem_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model perfis_usuario {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id String   @db.Uuid
+  perfil     String   @db.VarChar
+  usuarios   usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model prontuarios {
+  id                             String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  beneficiaria_id                String                          @db.Uuid
+  profissional_id                String                          @db.Uuid
+  agendamento_id                 String?                         @unique @db.Uuid
+  especialidade                  String                          @db.VarChar
+  descricao                      String?
+  visibilidade                   VisibilidadeProntuario          @default(PRIVADO)
+  criado_em                      DateTime?                       @default(now()) @db.Timestamp(6)
+  atualizado_em                  DateTime?                       @db.Timestamp(6)
+  agendamentos                   agendamentos?                   @relation(fields: [agendamento_id], references: [id], onUpdate: NoAction)
+  beneficiarias                  beneficiarias                   @relation(fields: [beneficiaria_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  usuarios                       usuarios                        @relation(fields: [profissional_id], references: [id], onUpdate: NoAction)
+  prontuario_compartilhamentos   prontuario_compartilhamentos[]
+  prontuarios_acupuntura         prontuarios_acupuntura?
+  prontuarios_fisioterapia       prontuarios_fisioterapia?
+  prontuarios_psicologia_adulto  prontuarios_psicologia_adulto?
+  prontuarios_psicologia_crianca prontuarios_psicologia_crianca?
+}
+
+model triagens {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  beneficiaria_id String            @db.Uuid
+  triador_id      String            @db.Uuid
+  data_triagem    DateTime          @db.Timestamp(6)
+  criado_em       DateTime?         @default(now()) @db.Timestamp(6)
+  encaminhamentos encaminhamentos[]
+  queixas         queixas[]
+  beneficiarias   beneficiarias     @relation(fields: [beneficiaria_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  usuarios        usuarios          @relation(fields: [triador_id], references: [id], onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model usuarios {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                String                @db.VarChar
+  email               String                @unique @db.VarChar
+  senha_hash          String                @db.VarChar
+  especialidade       String?               @db.VarChar
+  ativo               Boolean?              @default(true)
+  criado_em           DateTime?             @default(now()) @db.Timestamp(6)
+  deletado_em         DateTime?             @db.Timestamp(6)
+  agendamentos        agendamentos[]
+  bazar_profissionais bazar_profissionais[] @relation("bazar_profissionais")
+  bazares             bazares[]
+  doacoes             doacoes[]
+  doadores            doadores[]
+  perfis_usuario      perfis_usuario[]
+  prontuario_compartilhamentos prontuario_compartilhamentos[]
+  prontuarios         prontuarios[]
+  triagens            triagens[]
+}
+
+model prontuario_compartilhamentos {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  prontuario_id String      @db.Uuid
+  usuario_id    String      @db.Uuid
+  criado_em     DateTime    @default(now()) @db.Timestamp(6)
+  prontuarios   prontuarios @relation(fields: [prontuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios      usuarios    @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([prontuario_id, usuario_id])
+}
+
+model queixas {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  triagem_id        String    @db.Uuid
+  queixa_principal  String
+  queixa_secundaria String?
+  sintomas          String?
+  tipo_violencia    String?   @db.VarChar
+  observacoes       String?
+  criado_em         DateTime? @default(now()) @db.Timestamp(6)
+  triagens          triagens  @relation(fields: [triagem_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model prontuarios_acupuntura {
+  id                   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  prontuario_id        String      @unique @db.Uuid
+  data_atendimento     DateTime?   @db.Date
+  nome                 String?     @db.VarChar
+  profissional         String?     @db.VarChar
+  queixa_principal     String?
+  observacoes_clinicas String?
+  data_assinatura      DateTime?   @db.Date
+  prontuarios          prontuarios @relation(fields: [prontuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model prontuarios_psicologia_adulto {
+  id                              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  prontuario_id                   String      @unique @db.Uuid
+  data_atendimento                DateTime?   @db.Date
+  psicologo_estagiario            String?     @db.VarChar
+  nome                            String?     @db.VarChar
+  idade                           String?     @db.VarChar
+  sexo                            String?     @db.VarChar
+  nacionalidade                   String?     @db.VarChar
+  civil                           String?     @db.VarChar
+  data_nascimento                 DateTime?   @db.Date
+  estado                          String?     @db.VarChar
+  escolaridade                    String?     @db.VarChar
+  profissao                       String?     @db.VarChar
+  desempregado                    String?     @db.VarChar
+  tempo_desemprego                String?     @db.VarChar
+  residencia                      String?
+  telefone                        String?     @db.VarChar
+  ocupacao                        String?     @db.VarChar
+  hobbies                         String?
+  queixa_principal                String?
+  queixa_secundaria               String?
+  sintomas                        String?
+  psicoterapia_anterior           String?
+  expectativas_objetivos          String?
+  historico_infancia              String?
+  rotina                          String?
+  vicios                          String?
+  trabalho                        String?
+  doencas_transtornos             String?
+  medicamentos                    String?
+  uso_drogas                      String?
+  ideacao_suicida                 String?
+  pais_cuidadores                 String?
+  irmaos                          String?
+  conjuge                         String?
+  filhos                          String?
+  lar                             String?
+  patologia_pregressa             String?
+  adolescencia                    String?
+  relacionamentos_atuais          String?
+  aparencia                       String?
+  comportamento                   String?
+  atitude_entrevistador           String?     @db.VarChar
+  orientacao_autoidentificatoria  Boolean?    @default(false)
+  orientacao_corporal             Boolean?    @default(false)
+  orientacao_temporal             Boolean?    @default(false)
+  orientacao_espacial             Boolean?    @default(false)
+  orientacao_patologia            Boolean?    @default(false)
+  orientacao_observacoes          String?
+  atencao_vigilancia              String?
+  atencao_tenacidade              String?
+  memoria                         String?
+  inteligencia                    String?
+  sensopercpcao                   String?     @db.VarChar
+  pensamento_acelerado            Boolean?    @default(false)
+  pensamento_retardado            Boolean?    @default(false)
+  pensamento_fuga                 Boolean?    @default(false)
+  pensamento_bloqueio             Boolean?    @default(false)
+  pensamento_prolixo              Boolean?    @default(false)
+  pensamento_repeticao            Boolean?    @default(false)
+  conteudo_obsessoes              Boolean?    @default(false)
+  conteudo_hipocondrias           Boolean?    @default(false)
+  conteudo_fobias                 Boolean?    @default(false)
+  conteudo_delirios               Boolean?    @default(false)
+  expansao_eu_opcoes              String?
+  retracao_eu_opcoes              String?
+  negacao_eu_opcoes               String?
+  linguagem_disturbios            String?
+  afetividade                     String?
+  humor_opcoes                    String?     @db.VarChar
+  consciencia_doenca              String?     @db.VarChar
+  observacao_linguagem_nao_verbal String?
+  observacoes_finais              String?
+  prontuarios                     prontuarios @relation(fields: [prontuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model prontuarios_psicologia_crianca {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  prontuario_id    String      @unique @db.Uuid
+  data_atendimento DateTime?   @db.Date
+  profissional     String?     @db.VarChar
+  nome             String?     @db.VarChar
+  idade            String?     @db.VarChar
+  sexo             String?     @db.VarChar
+  responsavel      String?     @db.VarChar
+  queixa_principal String?
+  observacoes      String?
+  dados_json       String?
+  prontuarios      prontuarios @relation(fields: [prontuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model prontuarios_fisioterapia {
+  id                        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  prontuario_id             String      @unique @db.Uuid
+  nome                      String?     @db.VarChar
+  idade                     String?     @db.VarChar
+  sexo                      String?     @db.VarChar
+  ocupacao                  String?     @db.VarChar
+  cpf                       String?     @db.VarChar
+  rg                        String?     @db.VarChar
+  contato                   String?     @db.VarChar
+  caso_clinico              String?
+  historico_medico          String?
+  usa_medicamento           String?     @db.VarChar
+  medicamentos_lista        String?
+  sv_fc                     String?     @db.VarChar
+  sv_fr                     String?     @db.VarChar
+  sv_pa                     String?     @db.VarChar
+  apresentacao_paciente     String?
+  inspecao_palpacao         String?
+  exames_complementares     String?     @db.VarChar
+  exames_complementares_obs String?
+  protese_ortese            String?     @db.VarChar
+  protese_ortese_obs        String?
+  limitacao_movimento       String?     @db.VarChar
+  limitacao_movimento_obs   String?
+  equilibrio_coordenacao    String?     @db.VarChar
+  queixa_principal          String?
+  historia_clinica          String?
+  demais_observacoes        String?
+  dor_intensidade           Int?        @default(0)
+  objetivo_tratamento       String?
+  recursos_terapeuticos     String?
+  anotacoes_gerais          String?
+  data_assinatura           DateTime?   @db.Date
+  assinatura                String?     @db.VarChar
+  prontuarios               prontuarios @relation(fields: [prontuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
