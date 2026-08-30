@@ -1,0 +1,148 @@
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@700,800&display=swap");
+@import "tailwindcss";
+
+:root {
+  --foreground: #2B1F14;
+
+  /* Soft Bloom palette */
+  --salmon-primary: #E07A6E;
+  --salmon-light: #FDE8E4;
+  --salmon-medium: #F4CFC9;
+  --salmon-dark: #C05A48;
+  --green-primary: #6A9E6E;
+  --green-light: #D4EDD4;
+  --green-dark: #3D7845;
+  --bg-body: #FBF6F2;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --border-card: rgba(220, 200, 190, 0.45);
+  --text-primary: #2B1F14;
+  --text-secondary: #6B5E54;
+  --text-muted: #9B8E84;
+}
+
+@theme inline {
+  --color-foreground: var(--foreground);
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--foreground);
+  background: var(--bg-body);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+main > div::-webkit-scrollbar {
+  width: 6px;
+}
+
+main > div::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+main > div::-webkit-scrollbar-thumb {
+  background: rgba(224, 122, 110, 0.25);
+  border-radius: 99px;
+}
+
+main > div::-webkit-scrollbar-thumb:hover {
+  background: rgba(224, 122, 110, 0.45);
+}
+
+/* Dashboard hover effects */
+.dash-metric-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  cursor: default;
+  border: 1.5px solid transparent !important;
+}
+.dash-metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(224, 122, 110, 0.14), 0 2px 8px rgba(43, 31, 20, 0.06);
+}
+.dash-metric-card--salmon:hover {
+  border-color: rgba(224, 122, 110, 0.55) !important;
+}
+.dash-metric-card--green:hover {
+  border-color: rgba(61, 120, 69, 0.45) !important;
+}
+
+.dash-queue-row {
+  transition: background 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+.dash-queue-row:hover {
+  background: rgba(253, 232, 228, 0.7) !important;
+  transform: translateX(2px);
+}
+
+.dash-agenda-row {
+  transition: background 0.15s ease;
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 0 -6px;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+.dash-agenda-row:hover {
+  background: rgba(253, 232, 228, 0.35) !important;
+}
+
+.dash-link-agenda {
+  transition: color 0.15s ease, gap 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.dash-link-agenda:hover {
+  color: #C05A48 !important;
+  gap: 8px;
+}
+
+.dash-chart-bar {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  transform-origin: bottom;
+}
+.dash-chart-bar:hover {
+  opacity: 0.8;
+  transform: scaleY(1.04);
+}
+
+.dash-hero-card {
+  transition: box-shadow 0.2s ease;
+}
+.dash-hero-card:hover {
+  box-shadow: 0 12px 32px rgba(224, 122, 110, 0.12);
+}
+
+/* ── Dashboard responsive grids ──────────────────────────────────────── */
+.dash-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.dash-main-grid {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 12px;
+}
+.dash-chart-subgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 1024px) {
+  .dash-metrics-grid   { grid-template-columns: repeat(2, 1fr); }
+  .dash-main-grid      { grid-template-columns: 1fr; }
+  .dash-chart-subgrid  { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .dash-metrics-grid { grid-template-columns: 1fr; }
+}
