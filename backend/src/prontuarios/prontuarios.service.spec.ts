@@ -357,27 +357,100 @@ describe('ProntuariosService', () => {
       });
     });
 
-    it('lista somente prontuários compartilhados nominalmente e não excluídos', async () => {
+    it('lista todos os prontuários legíveis de outros autores para profissional', async () => {
+      usuarioNoBanco('profissional-1', ['PROFISSIONAL'], 'PSICOLOGIA');
       prisma.prontuarios.findMany.mockResolvedValue([]);
 
-      await service.findCompartilhadosComigo('profissional-1');
+      await service.findOutrosAcessiveis('profissional-1');
 
-      expect(prisma.prontuarios.findMany).toHaveBeenCalledWith({
-        where: {
-          deletado_em: null,
-          prontuario_compartilhamentos: {
-            some: { usuario_id: 'profissional-1' },
+      expect(prisma.prontuarios.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              { profissional_id: { not: 'profissional-1' }, deletado_em: null },
+              {
+                OR: [
+                  {
+                    prontuario_compartilhamentos: {
+                      some: { usuario_id: 'profissional-1' },
+                    },
+                  },
+                  { visibilidade: VisibilidadeProntuario.EQUIPE_CLINICA },
+                  {
+                    visibilidade: VisibilidadeProntuario.ESPECIALIDADE,
+                    especialidade: 'PSICOLOGIA',
+                  },
+                ],
+              },
+            ],
           },
+        }),
+      );
+    });
+
+    it('limita outros prontuários da gestora aos que ela realmente pode ler', async () => {
+      usuarioNoBanco('gestora-1', ['GESTORA']);
+      prisma.prontuarios.findMany.mockResolvedValue([]);
+
+      await service.findOutrosAcessiveis('gestora-1');
+
+      expect(prisma.prontuarios.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              { profissional_id: { not: 'gestora-1' }, deletado_em: null },
+              {
+                OR: [
+                  {
+                    prontuario_compartilhamentos: {
+                      some: { usuario_id: 'gestora-1' },
+                    },
+                  },
+                  { visibilidade: VisibilidadeProntuario.GESTORAS },
+                  { visibilidade: VisibilidadeProntuario.EQUIPE_CLINICA },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+    });
+
+    it('informa a origem do acesso e prioriza o compartilhamento nominal', async () => {
+      usuarioNoBanco('profissional-1', ['PROFISSIONAL'], 'PSICOLOGIA');
+      prisma.prontuarios.findMany.mockResolvedValue([
+        {
+          id: 'nominal-1',
+          especialidade: 'PSICOLOGIA',
+          visibilidade: VisibilidadeProntuario.EQUIPE_CLINICA,
+          criado_em: DATA,
+          prontuario_compartilhamentos: [{ usuario_id: 'profissional-1' }],
+          beneficiarias: { id: 'beneficiaria-1', nome: 'Maria' },
+          usuarios: { nome: 'Autora' },
         },
-        select: {
-          id: true,
-          especialidade: true,
-          criado_em: true,
-          beneficiarias: { select: { id: true, nome: true } },
-          usuarios: { select: { nome: true } },
+        {
+          id: 'especialidade-1',
+          especialidade: 'PSICOLOGIA',
+          visibilidade: VisibilidadeProntuario.ESPECIALIDADE,
+          criado_em: DATA,
+          prontuario_compartilhamentos: [],
+          beneficiarias: { id: 'beneficiaria-2', nome: 'Ana' },
+          usuarios: { nome: 'Autora' },
         },
-        orderBy: { criado_em: 'desc' },
-      });
+      ] as never);
+
+      await expect(
+        service.findOutrosAcessiveis('profissional-1'),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          id: 'nominal-1',
+          origem_acesso: 'COMPARTILHADO_COM_VOCE',
+        }),
+        expect.objectContaining({
+          id: 'especialidade-1',
+          origem_acesso: 'ESPECIALIDADE',
+        }),
+      ]);
     });
 
     it('limita a listagem profissional no where do Prisma', async () => {

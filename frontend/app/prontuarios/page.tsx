@@ -10,7 +10,7 @@ import ProntuarioSomenteLeitura from "@/components/ProntuarioSomenteLeitura";
 import VisibilidadeSelector from "@/components/VisibilidadeSelector";
 import { PDF_SECTIONS, abrirImpressao, gerarHtmlProntuario } from "@/lib/prontuario-pdf";
 import type { FormAcupuntura, FormAnamnese, FormCrianca, FormFisioterapia, ModalType, Morador } from "@/lib/types/prontuario";
-import { VISIBILIDADE_PADRAO, type UsuarioCompartilhavel, type Visibilidade } from "@/lib/visibilidade";
+import { nomeEspecialidade, VISIBILIDADE_PADRAO, type UsuarioCompartilhavel, type Visibilidade } from "@/lib/visibilidade";
 
 // ─── Interfaces de dados ──────────────────────────────────────────────────────
 
@@ -64,12 +64,32 @@ interface ProntuarioView {
   prontuarios_psicologia?: Record<string, unknown> | null;
 }
 
-interface ProntuarioCompartilhadoResumo {
+type OrigemAcessoProntuario =
+  | "COMPARTILHADO_COM_VOCE"
+  | "ESPECIALIDADE"
+  | "GESTORAS"
+  | "EQUIPE_CLINICA";
+
+interface OutroProntuarioResumo {
   id: string;
   especialidade: string;
   criado_em?: string;
+  origem_acesso: OrigemAcessoProntuario;
   beneficiarias: { id: string; nome: string };
   usuarios: { nome: string };
+}
+
+function rotuloOrigemAcesso(prontuario: OutroProntuarioResumo): string {
+  switch (prontuario.origem_acesso) {
+    case "COMPARTILHADO_COM_VOCE":
+      return "Compartilhado com você";
+    case "ESPECIALIDADE":
+      return nomeEspecialidade(prontuario.especialidade);
+    case "GESTORAS":
+      return "Gestoras";
+    case "EQUIPE_CLINICA":
+      return "Equipe clínica";
+  }
 }
 
 type ResultadoBuscaAgendamento =
@@ -466,12 +486,12 @@ export default function Prontuarios() {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [usuarioLogado, setUsuarioLogado] = useState<UsuarioLogado | null>(null);
-  const [aba, setAba] = useState<"meus" | "compartilhados">("meus");
-  const [compartilhados, setCompartilhados] = useState<ProntuarioCompartilhadoResumo[]>([]);
-  const [loadingCompartilhados, setLoadingCompartilhados] = useState(true);
-  const [erroCompartilhados, setErroCompartilhados] = useState("");
-  const [detalheCompartilhado, setDetalheCompartilhado] = useState<ProntuarioView | null>(null);
-  const [loadingCompartilhadoId, setLoadingCompartilhadoId] = useState<string | null>(null);
+  const [aba, setAba] = useState<"meus" | "outros">("meus");
+  const [outrosProntuarios, setOutrosProntuarios] = useState<OutroProntuarioResumo[]>([]);
+  const [loadingOutrosProntuarios, setLoadingOutrosProntuarios] = useState(true);
+  const [erroOutrosProntuarios, setErroOutrosProntuarios] = useState("");
+  const [detalheOutroProntuario, setDetalheOutroProntuario] = useState<ProntuarioView | null>(null);
+  const [loadingOutroProntuarioId, setLoadingOutroProntuarioId] = useState<string | null>(null);
   const [erroConsultaAgendamento, setErroConsultaAgendamento] = useState("");
 
   const [modalType, setModalType] = useState<ModalType | null>(null);
@@ -517,7 +537,7 @@ export default function Prontuarios() {
     if (usuario) {
       setUsuarioLogado(usuario);
       carregarAgendamentos();
-      carregarCompartilhados();
+      carregarOutrosProntuarios();
       carregarUsuariosCompartilhaveis();
     }
   }, []);
@@ -575,32 +595,32 @@ export default function Prontuarios() {
     }
   };
 
-  const carregarCompartilhados = async () => {
+  const carregarOutrosProntuarios = async () => {
     try {
-      setErroCompartilhados("");
-      const res = await fetchAuth(`${API_URL}/prontuarios/compartilhados-comigo`);
-      if (!res.ok) throw new Error("Erro ao buscar prontuários compartilhados");
+      setErroOutrosProntuarios("");
+      const res = await fetchAuth(`${API_URL}/prontuarios/outros`);
+      if (!res.ok) throw new Error("Erro ao buscar prontuários de outros profissionais");
       const data = await res.json();
-      setCompartilhados(Array.isArray(data) ? data : []);
+      setOutrosProntuarios(Array.isArray(data) ? data : []);
     } catch {
-      setErroCompartilhados("Não foi possível carregar os prontuários compartilhados.");
-      setCompartilhados([]);
+      setErroOutrosProntuarios("Não foi possível carregar os prontuários de outros profissionais.");
+      setOutrosProntuarios([]);
     } finally {
-      setLoadingCompartilhados(false);
+      setLoadingOutrosProntuarios(false);
     }
   };
 
-  const abrirCompartilhado = async (resumo: ProntuarioCompartilhadoResumo) => {
+  const abrirOutroProntuario = async (resumo: OutroProntuarioResumo) => {
     try {
-      setErroCompartilhados("");
-      setLoadingCompartilhadoId(resumo.id);
+      setErroOutrosProntuarios("");
+      setLoadingOutroProntuarioId(resumo.id);
       const res = await fetchAuth(`${API_URL}/prontuarios/${resumo.id}`);
-      if (!res.ok) throw new Error("Erro ao abrir prontuário compartilhado");
-      setDetalheCompartilhado((await res.json()) as ProntuarioView);
+      if (!res.ok) throw new Error("Erro ao abrir prontuário de outro profissional");
+      setDetalheOutroProntuario((await res.json()) as ProntuarioView);
     } catch {
-      setErroCompartilhados("Não foi possível abrir o prontuário compartilhado.");
+      setErroOutrosProntuarios("Não foi possível abrir o prontuário de outro profissional.");
     } finally {
-      setLoadingCompartilhadoId(null);
+      setLoadingOutroProntuarioId(null);
     }
   };
 
@@ -1084,7 +1104,7 @@ export default function Prontuarios() {
         <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
           {([
             ["meus", "Meus atendimentos"],
-            ["compartilhados", "Compartilhados comigo"],
+            ["outros", "Outros prontuários"],
           ] as const).map(([valor, rotulo]) => (
             <button
               key={valor}
@@ -1177,18 +1197,18 @@ export default function Prontuarios() {
         </div>
         ) : (
           <div style={{ background: "#fff", borderRadius: "16px", border: "0.5px solid #d2c3b2", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-            {erroCompartilhados && (
+            {erroOutrosProntuarios && (
               <div role="alert" style={{ padding: "12px 20px", background: "#FDE8E4", color: "#A9473C", fontSize: "12px" }}>
-                {erroCompartilhados}
+                {erroOutrosProntuarios}
               </div>
             )}
-            {loadingCompartilhados ? (
+            {loadingOutrosProntuarios ? (
               <div style={{ padding: "48px 20px", textAlign: "center", color: "#9B8E84", fontSize: "13px" }}>
-                Carregando prontuários compartilhados...
+                Carregando prontuários de outros profissionais...
               </div>
-            ) : compartilhados.length === 0 ? (
+            ) : outrosProntuarios.length === 0 ? (
               <div style={{ padding: "48px 20px", textAlign: "center", color: "#9B8E84", fontSize: "13px", fontWeight: 600 }}>
-                Nenhum prontuário foi compartilhado com você.
+                Nenhum prontuário de outros profissionais está acessível para você.
               </div>
             ) : (
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1197,27 +1217,33 @@ export default function Prontuarios() {
                     <th style={{ padding: "12px 20px" }}>BENEFICIÁRIA</th>
                     <th style={{ padding: "12px 20px" }}>AUTOR</th>
                     <th style={{ padding: "12px 20px" }}>ESPECIALIDADE</th>
+                    <th style={{ padding: "12px 20px" }}>ACESSO</th>
                     <th style={{ padding: "12px 20px" }}>DATA</th>
                     <th style={{ padding: "12px 20px" }}>AÇÕES</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {compartilhados.map((item) => (
+                  {outrosProntuarios.map((item) => (
                     <tr key={item.id} style={{ borderBottom: "0.5px solid #f0ece4", fontSize: "13px" }}>
                       <td style={{ padding: "14px 20px", fontWeight: 600 }}>{item.beneficiarias.nome}</td>
                       <td style={{ padding: "14px 20px", color: "#6B5E54" }}>{item.usuarios.nome}</td>
-                      <td style={{ padding: "14px 20px", color: "#6B5E54" }}>{item.especialidade}</td>
+                      <td style={{ padding: "14px 20px", color: "#6B5E54" }}>{nomeEspecialidade(item.especialidade)}</td>
+                      <td style={{ padding: "14px 20px" }}>
+                        <span style={{ display: "inline-block", padding: "4px 9px", borderRadius: "999px", background: "#F1EEE8", color: "#6B5E54", fontSize: "11px", fontWeight: 700, whiteSpace: "nowrap" }}>
+                          {rotuloOrigemAcesso(item)}
+                        </span>
+                      </td>
                       <td style={{ padding: "14px 20px", color: "#6B5E54" }}>
                         {item.criado_em ? formatarDataHora(item.criado_em) : "—"}
                       </td>
                       <td style={{ padding: "14px 20px" }}>
                         <button
                           type="button"
-                          onClick={() => abrirCompartilhado(item)}
-                          disabled={loadingCompartilhadoId !== null}
+                          onClick={() => abrirOutroProntuario(item)}
+                          disabled={loadingOutroProntuarioId !== null}
                           style={{ background: "#E07A6E", color: "#fff", border: 0, padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
                         >
-                          {loadingCompartilhadoId === item.id ? "Abrindo..." : "Abrir"}
+                          {loadingOutroProntuarioId === item.id ? "Abrindo..." : "Abrir"}
                         </button>
                       </td>
                     </tr>
@@ -1229,13 +1255,13 @@ export default function Prontuarios() {
         )}
       </div>
 
-      {detalheCompartilhado && (
+      {detalheOutroProntuario && (
         <Modal
-          titulo={`Prontuário — ${detalheCompartilhado.beneficiarias?.nome || "Beneficiária"}`}
+          titulo={`Prontuário — ${detalheOutroProntuario.beneficiarias?.nome || "Beneficiária"}`}
           subtitulo="Somente leitura"
-          onClose={() => setDetalheCompartilhado(null)}
+          onClose={() => setDetalheOutroProntuario(null)}
         >
-          <ProntuarioSomenteLeitura prontuario={detalheCompartilhado} />
+          <ProntuarioSomenteLeitura prontuario={detalheOutroProntuario} />
         </Modal>
       )}
 

@@ -46,9 +46,9 @@ export class ProntuariosController {
     return this.prontuariosService.findByProfissional(usuario.id, usuario.id);
   }
 
-  @Get('compartilhados-comigo')
-  findCompartilhadosComigo(@CurrentUser() usuario: JwtUser) {
-    return this.prontuariosService.findCompartilhadosComigo(usuario.id);
+  @Get('outros')
+  findOutros(@CurrentUser() usuario: JwtUser) {
+    return this.prontuariosService.findOutrosAcessiveis(usuario.id);
   }
 
   @Get('profissional/:profissional_id')

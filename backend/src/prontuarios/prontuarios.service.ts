@@ -74,6 +74,12 @@ type ProntuarioRedigivel = {
   usuarios: { nome: string };
 };
 
+type OrigemAcessoProntuario =
+  | 'COMPARTILHADO_COM_VOCE'
+  | 'ESPECIALIDADE'
+  | 'GESTORAS'
+  | 'EQUIPE_CLINICA';
+
 export function redigirProntuario<T extends ProntuarioRedigivel>(
   prontuario: T,
   usuario: UsuarioVisibilidade,
@@ -254,23 +260,42 @@ export class ProntuariosService {
     );
   }
 
-  async findCompartilhadosComigo(usuarioId: string) {
-    return this.prisma.prontuarios.findMany({
+  async findOutrosAcessiveis(usuarioId: string) {
+    const usuario = await this.buscarUsuarioVisibilidade(usuarioId);
+    const prontuarios = await this.prisma.prontuarios.findMany({
       where: {
-        ...NAO_EXCLUIDO,
-        prontuario_compartilhamentos: {
-          some: { usuario_id: usuarioId },
-        },
+        AND: [
+          { profissional_id: { not: usuario.id }, ...NAO_EXCLUIDO },
+          this.whereLeitura(usuario),
+        ],
       },
       select: {
         id: true,
         especialidade: true,
+        visibilidade: true,
         criado_em: true,
+        prontuario_compartilhamentos: {
+          select: { usuario_id: true },
+        },
         beneficiarias: { select: { id: true, nome: true } },
         usuarios: { select: { nome: true } },
       },
       orderBy: { criado_em: 'desc' },
     });
+
+    return prontuarios.map(
+      ({ prontuario_compartilhamentos, visibilidade, ...prontuario }) => ({
+        ...prontuario,
+        origem_acesso: this.origemAcesso(
+          {
+            especialidade: prontuario.especialidade,
+            visibilidade,
+            prontuario_compartilhamentos,
+          },
+          usuario,
+        ),
+      }),
+    );
   }
 
   async findByBeneficiaria(beneficiaria_id: string, usuarioId: string) {
@@ -447,6 +472,23 @@ export class ProntuariosService {
 
     const permissoes: Prisma.prontuariosWhereInput[] = [
       { profissional_id: usuario.id },
+      ...this.permissoesLeitura(usuario),
+    ];
+
+    return { OR: permissoes };
+  }
+
+  private whereLeitura(
+    usuario: UsuarioVisibilidade,
+  ): Prisma.prontuariosWhereInput {
+    return { OR: this.permissoesLeitura(usuario) };
+  }
+
+  private permissoesLeitura(
+    usuario: UsuarioVisibilidade,
+  ): Prisma.prontuariosWhereInput[] {
+    const perfis = new Set(usuario.perfis);
+    const permissoes: Prisma.prontuariosWhereInput[] = [
       {
         prontuario_compartilhamentos: {
           some: { usuario_id: usuario.id },
@@ -465,7 +507,41 @@ export class ProntuariosService {
       }
     }
 
-    return { OR: permissoes };
+    if (perfis.has('GESTORA')) {
+      permissoes.push(
+        { visibilidade: VisibilidadeProntuario.GESTORAS },
+        { visibilidade: VisibilidadeProntuario.EQUIPE_CLINICA },
+      );
+    }
+
+    return permissoes;
+  }
+
+  private origemAcesso(
+    prontuario: Pick<
+      ProntuarioRedigivel,
+      'especialidade' | 'visibilidade' | 'prontuario_compartilhamentos'
+    >,
+    usuario: UsuarioVisibilidade,
+  ): OrigemAcessoProntuario {
+    if (
+      prontuario.prontuario_compartilhamentos.some(
+        ({ usuario_id }) => usuario_id === usuario.id,
+      )
+    ) {
+      return 'COMPARTILHADO_COM_VOCE';
+    }
+
+    switch (prontuario.visibilidade) {
+      case VisibilidadeProntuario.ESPECIALIDADE:
+        return 'ESPECIALIDADE';
+      case VisibilidadeProntuario.GESTORAS:
+        return 'GESTORAS';
+      case VisibilidadeProntuario.EQUIPE_CLINICA:
+        return 'EQUIPE_CLINICA';
+      default:
+        throw new Error('Prontuário sem origem de acesso compatível');
+    }
   }
 
   private async verificarAutoria(id: string, usuarioId: string) {
