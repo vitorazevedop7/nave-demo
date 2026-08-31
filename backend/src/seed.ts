@@ -7,7 +7,11 @@
  */
 import 'dotenv/config';
 import * as bcrypt from 'bcrypt';
-import { PrismaClient, VisibilidadeProntuario } from '@prisma/client';
+import {
+  Prisma,
+  PrismaClient,
+  VisibilidadeProntuario,
+} from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -29,35 +33,35 @@ const dataRelativa = (dias: number, hora = 10, minuto = 0) => {
 const mesRelativo = (meses: number) =>
   new Date(agora.getFullYear(), agora.getMonth() + meses, 10, 12);
 
-async function limparBase() {
-  await prisma.prontuario_compartilhamentos.deleteMany({});
-  await prisma.prontuarios_acupuntura.deleteMany({});
-  await prisma.prontuarios_fisioterapia.deleteMany({});
-  await prisma.prontuarios_psicologia_adulto.deleteMany({});
-  await prisma.prontuarios_psicologia_crianca.deleteMany({});
-  await prisma.prontuarios.deleteMany({});
-  await prisma.agendamentos.deleteMany({});
-  await prisma.queixas.deleteMany({});
-  await prisma.encaminhamentos.deleteMany({});
-  await prisma.triagens.deleteMany({});
-  await prisma.doacoes.deleteMany({});
-  await prisma.campanhas_doacoes.deleteMany({});
-  await prisma.bazar_profissionais.deleteMany({});
-  await prisma.bazares.deleteMany({});
-  await prisma.doadores.deleteMany({});
-  await prisma.perfis_usuario.deleteMany({});
-  await prisma.beneficiarias.updateMany({ data: { responsavel_id: null } });
-  await prisma.beneficiarias.deleteMany({});
-  await prisma.usuarios.deleteMany({});
+async function limparBase(db: Prisma.TransactionClient) {
+  await db.prontuario_compartilhamentos.deleteMany({});
+  await db.prontuarios_acupuntura.deleteMany({});
+  await db.prontuarios_fisioterapia.deleteMany({});
+  await db.prontuarios_psicologia_adulto.deleteMany({});
+  await db.prontuarios_psicologia_crianca.deleteMany({});
+  await db.prontuarios.deleteMany({});
+  await db.agendamentos.deleteMany({});
+  await db.queixas.deleteMany({});
+  await db.encaminhamentos.deleteMany({});
+  await db.triagens.deleteMany({});
+  await db.doacoes.deleteMany({});
+  await db.campanhas_doacoes.deleteMany({});
+  await db.bazar_profissionais.deleteMany({});
+  await db.bazares.deleteMany({});
+  await db.doadores.deleteMany({});
+  await db.perfis_usuario.deleteMany({});
+  await db.beneficiarias.updateMany({ data: { responsavel_id: null } });
+  await db.beneficiarias.deleteMany({});
+  await db.usuarios.deleteMany({});
 }
 
-async function main() {
+async function seedDemo(db: Prisma.TransactionClient) {
   console.log('🌱 Iniciando seed fictício de demonstração...');
-  await limparBase();
+  await limparBase(db);
 
   const senhaHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
-  const gestora = await prisma.usuarios.create({
+  const gestora = await db.usuarios.create({
     data: {
       nome: 'Gestora Demo Aurora',
       email: 'gestora.demo@example.com',
@@ -66,7 +70,7 @@ async function main() {
       perfis_usuario: { create: [{ perfil: 'GESTORA' }] },
     },
   });
-  const triadora = await prisma.usuarios.create({
+  const triadora = await db.usuarios.create({
     data: {
       nome: 'Triadora Demo Estrela',
       email: 'triadora.demo@example.com',
@@ -75,7 +79,7 @@ async function main() {
       perfis_usuario: { create: [{ perfil: 'TRIADORA' }] },
     },
   });
-  const profissionalPsi = await prisma.usuarios.create({
+  const profissionalPsi = await db.usuarios.create({
     data: {
       nome: 'Profissional Demo Brisa',
       email: 'profissional.psi.demo@example.com',
@@ -85,7 +89,7 @@ async function main() {
       perfis_usuario: { create: [{ perfil: 'PROFISSIONAL' }] },
     },
   });
-  const profissionalSocial = await prisma.usuarios.create({
+  const profissionalSocial = await db.usuarios.create({
     data: {
       nome: 'Profissional Demo Cais',
       email: 'profissional.social.demo@example.com',
@@ -95,7 +99,7 @@ async function main() {
       perfis_usuario: { create: [{ perfil: 'PROFISSIONAL' }] },
     },
   });
-  const profissionalFisio = await prisma.usuarios.create({
+  const profissionalFisio = await db.usuarios.create({
     data: {
       nome: 'Profissional Demo Duna',
       email: 'profissional.fisio.demo@example.com',
@@ -123,7 +127,7 @@ async function main() {
   const beneficiarias: { id: string }[] = [];
   for (const [indice, [nome, cpf, telefone, status]] of pessoasDemo.entries()) {
     beneficiarias.push(
-      await prisma.beneficiarias.create({
+      await db.beneficiarias.create({
         data: {
           nome,
           cpf,
@@ -151,7 +155,7 @@ async function main() {
   ] as const;
   const encaminhamentos: { id: string }[] = [];
   for (let indice = 0; indice < especialidades.length; indice++) {
-    const triagem = await prisma.triagens.create({
+    const triagem = await db.triagens.create({
       data: {
         beneficiaria_id: beneficiarias[indice].id,
         triador_id: triadora.id,
@@ -170,7 +174,7 @@ async function main() {
       },
     });
     encaminhamentos.push(
-      await prisma.encaminhamentos.create({
+      await db.encaminhamentos.create({
         data: {
           triagem_id: triagem.id,
           especialidade: especialidades[indice],
@@ -200,13 +204,15 @@ async function main() {
     [-8, 11, 0, 'REALIZADO'],
     [-4, 16, 0, 'CANCELADO'],
     [-12, 9, 30, 'CANCELADO'],
+    [0, 8, 0, 'REALIZADO'],
+    [0, 16, 30, 'CANCELADO'],
   ] as const;
 
   const agendamentos: { id: string }[] = [];
   for (const [indice, [dias, hora, minuto, status]] of agenda.entries()) {
     const especialidade = especialidades[indice % especialidades.length];
     agendamentos.push(
-      await prisma.agendamentos.create({
+      await db.agendamentos.create({
         data: {
           beneficiaria_id: beneficiarias[indice % beneficiarias.length].id,
           profissional_id: profissionais[especialidade].id,
@@ -227,7 +233,7 @@ async function main() {
     [3, profissionalFisio, VisibilidadeProntuario.EQUIPE_CLINICA],
   ] as const;
   for (const [indice, profissional, visibilidade] of prontuariosDemo) {
-    await prisma.prontuarios.create({
+    await db.prontuarios.create({
       data: {
         beneficiaria_id: beneficiarias[indice].id,
         profissional_id: profissional.id,
@@ -245,7 +251,7 @@ async function main() {
     });
   }
 
-  const doadorPessoa = await prisma.doadores.create({
+  const doadorPessoa = await db.doadores.create({
     data: {
       nome: 'Doador Demo Aurora',
       tipo: 'PESSOA_FISICA',
@@ -254,7 +260,7 @@ async function main() {
       registrado_por: gestora.id,
     },
   });
-  const doadorEmpresa = await prisma.doadores.create({
+  const doadorEmpresa = await db.doadores.create({
     data: {
       nome: 'Empresa Demo Horizonte',
       tipo: 'PESSOA_JURIDICA',
@@ -263,7 +269,7 @@ async function main() {
       registrado_por: gestora.id,
     },
   });
-  const campanha = await prisma.campanhas_doacoes.create({
+  const campanha = await db.campanhas_doacoes.create({
     data: {
       nome: 'Campanha Fictícia de Demonstração',
       descricao: 'Campanha sem arrecadação real.',
@@ -271,7 +277,7 @@ async function main() {
     },
   });
   for (let mes = -5; mes <= 0; mes++) {
-    await prisma.doacoes.create({
+    await db.doacoes.create({
       data: {
         doador_id: mes % 2 === 0 ? doadorPessoa.id : doadorEmpresa.id,
         campanha_id: campanha.id,
@@ -285,7 +291,7 @@ async function main() {
     });
   }
 
-  await prisma.bazares.createMany({
+  await db.bazares.createMany({
     data: [
       {
         nome: 'Bazar Demo Aurora',
@@ -313,6 +319,13 @@ async function main() {
   console.log('profissional.psi.demo@example.com → PROFISSIONAL');
   console.log('triadora.demo@example.com         → TRIADORA');
   console.log(`Senha de demonstração: ${DEMO_PASSWORD}`);
+}
+
+async function main() {
+  await prisma.$transaction((db) => seedDemo(db), {
+    maxWait: 10_000,
+    timeout: 60_000,
+  });
 }
 
 main()

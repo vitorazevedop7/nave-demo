@@ -4,6 +4,8 @@
 
 O Sistema NAVE centraliza a gestão interna de uma organização do terceiro setor que operava seus processos em papel e WhatsApp. A aplicação reúne cadastros, triagens, encaminhamentos, agendas, prontuários com acesso controlado, doações, bazares e painéis operacionais em um único fluxo autenticado.
 
+![Painel da gestora, com atendimentos do dia, encaminhamentos por especialidade e agenda em tempo real](docs/screenshots/readme-dashboard.png)
+
 ## Visão rápida
 
 ~~~text
@@ -29,6 +31,12 @@ O fluxo principal conecta beneficiárias a triagens e queixas, gera encaminhamen
 
 O [modelo lógico completo](docs/README.md) documenta tabelas, atributos e relações com maior detalhe.
 
+O fluxo pode ser acompanhado na própria interface, do encaminhamento por especialidade até a agenda com os quatro status de atendimento:
+
+![Tela de encaminhamentos, com as triagens pendentes e a queixa e especialidades de uma beneficiária](docs/screenshots/manual-08-encaminhamento-detalhe.png)
+
+![Detalhe de um dia na agenda, com atendimentos nos quatro status — Agendado, Confirmado, Realizado e Cancelado](docs/screenshots/manual-11-agenda.png)
+
 ## Controle de acesso aos prontuários
 
 O sistema possui três perfis funcionais:
@@ -36,6 +44,10 @@ O sistema possui três perfis funcionais:
 - **GESTORA:** administra usuários e processos organizacionais e acessa as áreas de gestão.
 - **TRIADORA:** registra triagens, queixas e encaminhamentos.
 - **PROFISSIONAL:** acompanha a própria agenda e registra prontuários vinculados à sua especialidade.
+
+O RBAC não existe só no backend: cada perfil também enxerga um menu diferente na interface.
+
+![Comparação lado a lado do menu lateral para os perfis gestora, triadora e profissional, mostrando quantos itens cada um enxerga](docs/screenshots/readme-rbac-sidebars.png)
 
 Cada prontuário possui um dos quatro níveis de visibilidade:
 
@@ -45,6 +57,10 @@ Cada prontuário possui um dos quatro níveis de visibilidade:
 | **ESPECIALIDADE** | Profissionais cuja especialidade seja igual à do prontuário. |
 | **GESTORAS** | Usuários com perfil GESTORA. |
 | **EQUIPE_CLINICA** | Usuários com perfil GESTORA ou PROFISSIONAL. |
+
+Esse controle é configurável por prontuário, diretamente na tela de preenchimento:
+
+![Seletor "Quem pode ver este laudo?" no prontuário, com as quatro opções de visibilidade e o campo para incluir alguém individualmente](docs/screenshots/readme-prontuario-visibilidade.png)
 
 A autoria e o compartilhamento nominal concedem acesso independentemente do nível. Quando a regra não autoriza o conteúdo, a API devolve somente metadados do registro e marca o conteúdo como restrito.
 
@@ -68,7 +84,7 @@ A combinação permite aplicar menor privilégio sem bloquear o trabalho: regist
 docker compose up -d
 ~~~
 
-O Compose inicia um PostgreSQL exclusivamente local na porta 5432.
+O Compose inicia um PostgreSQL exclusivamente local, exposto na porta 5433 (para não conflitar com um PostgreSQL já instalado localmente na 5432 padrão).
 
 ### 2. Backend
 

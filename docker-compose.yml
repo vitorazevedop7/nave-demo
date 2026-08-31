@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: nave_demo
       POSTGRES_PASSWORD: nave_demo_local
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - nave_demo_postgres:/var/lib/postgresql/data
     healthcheck:

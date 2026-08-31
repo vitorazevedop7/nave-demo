@@ -77,7 +77,7 @@ podem ser alterados por você.
 > Uma pessoa pode ter mais de um perfil. Se a sua conta é triadora **e**
 > profissional, você enxerga a soma das duas coisas.
 
-[PRINT: menu lateral aberto, mostrando as seções Geral, Gestão, Clínico e Financeiro — de preferência com uma conta gestora, que mostra todos os itens]
+![Menu lateral do sistema NAVE com uma conta gestora, mostrando as seções Geral, Gestão, Clínico e Financeiro](docs/screenshots/manual-01-menu-lateral.png)
 
 ---
 
@@ -89,7 +89,7 @@ podem ser alterados por você.
 
 Deu certo? Você cai direto na tela inicial, com o resumo do seu dia.
 
-[PRINT: tela de login, com os campos de e-mail e senha preenchidos]
+![Tela de login do sistema NAVE, com os campos de e-mail e senha preenchidos](docs/screenshots/manual-02-login.png)
 
 ### Se aparecer uma mensagem em vermelho
 
@@ -125,7 +125,7 @@ por segurança. Nada que você salvou se perde — é só entrar de novo.
 1. No menu da esquerda, clique em **Beneficiárias**.
 2. No canto superior direito, clique em **Nova Beneficiária**.
 
-[PRINT: lista de beneficiárias, com destaque no botão "Nova Beneficiária"]
+![Lista de beneficiárias, com o botão Nova Beneficiária no canto superior direito](docs/screenshots/manual-03-lista-beneficiarias.png)
 
 3. Preencha a ficha.
 
@@ -148,7 +148,7 @@ Os campos disponíveis:
 | Estado civil, Escolaridade, Raça/Cor, Ocupação, Situação de emprego | Dados socioeconômicos, todos opcionais. |
 | Status | Ativa, Em espera, Encerrada ou Desistente. Começa como Ativa. |
 
-[PRINT: formulário de nova beneficiária, mostrando o campo Nome com o asterisco vermelho]
+![Formulário de nova beneficiária, com o campo Nome marcado como obrigatório](docs/screenshots/manual-04-form-nova-beneficiaria.png)
 
 4. Clique em **Salvar**.
 
@@ -180,7 +180,7 @@ Na lista de beneficiárias, cada linha tem botões de ação à direita:
 - **Nova triagem** — já começa a triagem com ela selecionada
 - **Arquivar** — [seção 7](#7-arquivar-uma-beneficiária)
 
-[PRINT: uma linha da lista de beneficiárias, com os quatro botões de ação visíveis]
+![Linha da lista de beneficiárias com os botões Editar, Histórico, Nova triagem e Arquivar](docs/screenshots/manual-05-linha-acoes.png)
 
 ---
 
@@ -204,7 +204,7 @@ Abre a ficha completa ali mesmo, sem precisar sair da triagem. É o caminho da
 triadora. Os campos são os mesmos da [seção 3](#3-cadastrar-uma-beneficiária),
 e de novo: **só o nome completo é obrigatório**.
 
-[PRINT: etapa 1 da triagem, mostrando as duas opções — "Beneficiária já cadastrada" e "Nova beneficiária"]
+![Etapa 1 da triagem, com as opções Beneficiária já cadastrada e Nova beneficiária](docs/screenshots/manual-06-triagem-etapa1.png)
 
 Quando terminar, clique em **Próximo →**.
 
@@ -227,7 +227,7 @@ Aqui você registra o que a beneficiária trouxe.
 Escreva com calma. É esse texto que a profissional vai ler antes do primeiro
 atendimento — quanto mais claro, melhor o acolhimento do outro lado.
 
-[PRINT: etapa 2 da triagem, com o campo "Queixa principal" preenchido]
+![Etapa 2 da triagem, com o campo Queixa principal preenchido](docs/screenshots/manual-07-triagem-etapa2.png)
 
 Para terminar, clique em **Confirmar triagem**.
 
@@ -271,7 +271,7 @@ encaminha.
 
 4. Clique em **Confirmar Encaminhamento**.
 
-[PRINT: tela de encaminhamentos — lista de triagens pendentes à esquerda, queixa e especialidades à direita]
+![Tela de encaminhamentos, com as triagens pendentes à esquerda e a queixa e especialidades à direita](docs/screenshots/manual-08-encaminhamento-detalhe.png)
 
 > O botão fica apagado enquanto você não marcar nenhuma especialidade. Se ele
 > não estiver clicável, é isso.
@@ -308,7 +308,7 @@ deixa o atendimento ligado ao encaminhamento.
    mostram o botão, porque já têm horário.
 3. Clique em **Agendar**.
 
-[PRINT: tabela de histórico de encaminhamentos, com destaque no botão "Agendar" de uma linha Pendente]
+![Tabela de histórico de encaminhamentos, com o botão Agendar em uma linha com situação Pendente](docs/screenshots/manual-09-historico-agendar.png)
 
 Abre a janela **Novo agendamento**, já com a beneficiária preenchida e uma
 tarja roxa dizendo **"Vinculando encaminhamento — [especialidade]"**. É assim
@@ -326,7 +326,7 @@ que você sabe que o atendimento vai ficar ligado àquele encaminhamento.
 
 5. Clique em **Salvar**.
 
-[PRINT: janela "Novo agendamento" aberta a partir do encaminhamento, com a tarja roxa "Vinculando encaminhamento" visível]
+![Janela Novo agendamento aberta a partir do encaminhamento, com a tarja Vinculando encaminhamento](docs/screenshots/manual-10-modal-agendamento.png)
 
 Pronto: o encaminhamento muda de **Pendente** para **Agendado** sozinho, e o
 atendimento aparece na agenda da profissional.
@@ -364,7 +364,7 @@ cancelado, que é o certo para o histórico.
 Se você é **profissional**, edita os seus próprios atendimentos. Os das colegas
 aparecem para você se organizar, mas não podem ser alterados.
 
-[PRINT: tela da agenda, mostrando atendimentos em situações diferentes e a legenda de cores]
+![Detalhe de um dia na agenda, mostrando atendimentos nos quatro status — Agendado, Confirmado, Realizado e Cancelado](docs/screenshots/manual-11-agenda.png)
 
 ---
 
@@ -392,7 +392,7 @@ fora.
 
 5. Confirme clicando em **Arquivar**.
 
-[PRINT: janela de confirmação do arquivamento]
+![Janela de confirmação do arquivamento de uma beneficiária](docs/screenshots/manual-12-modal-arquivar.png)
 
 ### Como ver o histórico de quem foi arquivada
 
