@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useState, FormEvent } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { API_URL, extrairMensagemErro } from "@/lib/api";
 
 const LoginLogo3D = dynamic(() => import("@/components/LoginLogo3D"), {
@@ -192,6 +193,19 @@ export default function LoginPage() {
                 onFocus={(e) => (e.currentTarget.style.borderColor = "#e07a6e")}
                 onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(210, 195, 178, 0.7)")}
               />
+              <Link
+                href="/esqueci-minha-senha"
+                style={{
+                  alignSelf: "flex-end",
+                  marginTop: "4px",
+                  color: "#9a4c41",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                Esqueci minha senha
+              </Link>
             </div>
 
             {/* Mensagem de erro */}

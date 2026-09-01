@@ -173,6 +173,7 @@ export class UsuariosService {
     if (dto.ativo !== undefined) data.ativo = dto.ativo;
     if (dto.senha !== undefined) {
       data.senha_hash = await bcrypt.hash(dto.senha, BCRYPT_ROUNDS);
+      data.versao_token = { increment: 1 };
     }
 
     // A troca de perfis apaga e recria as linhas. Como escrita aninhada no

@@ -19,4 +19,10 @@ export interface JwtPayload {
   email: string;
   nome: string;
   perfis: string[];
+  /**
+   * Versão das credenciais do usuário no momento do login. Redefinir a senha
+   * incrementa a versão no banco e invalida todos os tokens emitidos antes.
+   * Tokens antigos, sem o campo, valem como versão 0.
+   */
+  versaoToken?: number;
 }

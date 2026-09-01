@@ -38,7 +38,12 @@ describe('JwtStrategy.validate', () => {
     });
     expect(prisma.usuarios.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'u-1', deletado_em: null, ativo: true },
+        where: {
+          id: 'u-1',
+          deletado_em: null,
+          ativo: true,
+          versao_token: 0,
+        },
       }),
     );
   });
@@ -49,5 +54,36 @@ describe('JwtStrategy.validate', () => {
     await expect(strategy.validate(payload)).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
+  });
+});
+
+describe('JwtStrategy versão do token', () => {
+  let prisma: PrismaMock;
+  let strategy: JwtStrategy;
+
+  beforeEach(() => {
+    prisma = criarPrismaMock();
+    const config = { getOrThrow: () => 'segredo-de-teste' };
+    strategy = new JwtStrategy(config as unknown as ConfigService, prisma);
+  });
+
+  it('exige no banco a mesma versão de credenciais gravada no token', async () => {
+    prisma.usuarios.findFirst.mockResolvedValue(null);
+
+    await expect(
+      strategy.validate({ ...payload, versaoToken: 2 }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.usuarios.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ versao_token: 2 }),
+      }),
+    );
+  });
+
+  it('recusa versão de token malformada sem consultar o banco', async () => {
+    await expect(
+      strategy.validate({ ...payload, versaoToken: -1 }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.usuarios.findFirst).not.toHaveBeenCalled();
   });
 });

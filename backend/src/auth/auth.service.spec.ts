@@ -2,10 +2,13 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { criarPrismaMock, type PrismaMock } from '../test-utils/prisma-mock';
+import type { MailService } from '../mail/mail.service';
 import { AuthService } from './auth.service';
+import type { PasswordResetRateLimiter } from './password-reset-rate-limiter.service';
 
 jest.mock('bcrypt', () => ({ compare: jest.fn() }));
 
@@ -16,6 +19,7 @@ const usuario = {
   nome: 'Ana',
   email: 'ana@example.com',
   senha_hash: '$2b$10$hash-real',
+  versao_token: 3,
   especialidade: 'PSICOLOGIA',
   perfis_usuario: [{ perfil: 'PROFISSIONAL' }, { perfil: 'GESTORA' }],
 };
@@ -29,7 +33,13 @@ describe('AuthService.login', () => {
     jest.clearAllMocks();
     prisma = criarPrismaMock();
     jwt = { sign: jest.fn().mockReturnValue('token-assinado') };
-    service = new AuthService(prisma, jwt as unknown as JwtService);
+    service = new AuthService(
+      prisma,
+      jwt as unknown as JwtService,
+      { get: () => undefined } as unknown as ConfigService,
+      { sendPasswordReset: jest.fn() } as unknown as MailService,
+      { assertAllowed: jest.fn() } as unknown as PasswordResetRateLimiter,
+    );
   });
 
   it('emite token e devolve o usuário sem a senha', async () => {
@@ -57,6 +67,7 @@ describe('AuthService.login', () => {
       email: 'ana@example.com',
       nome: 'Ana',
       perfis: ['PROFISSIONAL', 'GESTORA'],
+      versaoToken: 3,
     });
   });
 

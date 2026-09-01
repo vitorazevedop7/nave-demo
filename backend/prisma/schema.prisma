@@ -177,6 +177,7 @@ model usuarios {
   nome                         String                @db.VarChar
   email                        String                @unique @db.VarChar
   senha_hash                   String                @db.VarChar
+  versao_token                 Int                            @default(0)
   especialidade                String?               @db.VarChar
   ativo                        Boolean?              @default(true)
   criado_em                    DateTime?             @default(now()) @db.Timestamp(6)
@@ -189,7 +190,23 @@ model usuarios {
   perfis_usuario               perfis_usuario[]
   prontuario_compartilhamentos prontuario_compartilhamentos[]
   prontuarios                  prontuarios[]
+  redefinicoes_senha           redefinicoes_senha[]
   triagens                     triagens[]
+}
+
+/// Tokens de redefinição nunca são armazenados em texto puro. Esta tabela
+/// guarda apenas SHA-256 do token aleatório entregue por e-mail.
+model redefinicoes_senha {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id String    @db.Uuid
+  token_hash String    @unique @db.VarChar(64)
+  expira_em  DateTime  @db.Timestamp(6)
+  usado_em   DateTime? @db.Timestamp(6)
+  criado_em  DateTime  @default(now()) @db.Timestamp(6)
+  usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([usuario_id])
+  @@index([expira_em])
 }
 
 model prontuario_compartilhamentos {

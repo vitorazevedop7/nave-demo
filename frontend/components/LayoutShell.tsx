@@ -6,7 +6,11 @@ import Sidebar from "./Sidebar";
 import { DialogProvider } from "./DialogProvider";
 import { getUsuario } from "@/lib/auth";
 
-const AUTH_ROUTES = ["/login"];
+const AUTH_ROUTES = [
+  "/login",
+  "/esqueci-minha-senha",
+  "/redefinir-senha",
+];
 
 // Rotas que exigem perfis específicos. Rotas fora deste mapa são acessíveis
 // por qualquer usuário autenticado.

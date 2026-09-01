@@ -5,6 +5,8 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload, JwtUser } from './jwt-user.interface';
 
+const SESSAO_INVALIDA = 'Sessão inválida. Faça login novamente.';
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -21,11 +23,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   /**
    * A assinatura válida só prova que o token foi emitido por nós. Quem pode
    * agir é decidido pelo banco: usuário desativado ou removido perde o acesso
-   * na próxima requisição, e não quando o token expirar.
+   * na próxima requisição, e não quando o token expirar. O mesmo vale para
+   * tokens emitidos antes de uma redefinição de senha (`versao_token`).
    */
   async validate(payload: JwtPayload): Promise<JwtUser> {
+    const versaoToken = payload.versaoToken ?? 0;
+    if (!Number.isInteger(versaoToken) || versaoToken < 0) {
+      throw new UnauthorizedException(SESSAO_INVALIDA);
+    }
+
     const usuario = await this.prisma.usuarios.findFirst({
-      where: { id: payload.sub, deletado_em: null, ativo: true },
+      where: {
+        id: payload.sub,
+        deletado_em: null,
+        ativo: true,
+        versao_token: versaoToken,
+      },
       select: {
         id: true,
         email: true,
@@ -36,7 +49,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!usuario) {
-      throw new UnauthorizedException('Sessão inválida. Faça login novamente.');
+      throw new UnauthorizedException(SESSAO_INVALIDA);
     }
 
     return {
