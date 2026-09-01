@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { Transporter } from 'nodemailer';
 
@@ -9,6 +9,7 @@ interface PasswordResetEmail {
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
   private readonly transporter: Transporter | null;
   private readonly from: string;
   private readonly frontendUrl: string;
@@ -57,18 +58,43 @@ export class MailService {
     // O fragmento não é enviado ao servidor do frontend nem aparece em access logs.
     const resetUrl = `${this.frontendUrl}/redefinir-senha#token=${encodeURIComponent(token)}`;
 
-    await this.transporter.sendMail({
-      from: this.from,
-      to,
-      subject: 'Redefinição de senha — NAVE',
-      text: [
-        'Recebemos uma solicitação para redefinir sua senha no sistema NAVE.',
-        '',
-        `Acesse o link abaixo em até ${this.tokenTtlMinutes} minutos:`,
-        resetUrl,
-        '',
-        'Se você não fez esta solicitação, ignore esta mensagem.',
-      ].join('\n'),
-    });
+    try {
+      await this.transporter.sendMail({
+        from: this.from,
+        to,
+        subject: 'Redefinição de senha — NAVE',
+        text: [
+          'Recebemos uma solicitação para redefinir sua senha no sistema NAVE.',
+          '',
+          `Acesse o link abaixo em até ${this.tokenTtlMinutes} minutos:`,
+          resetUrl,
+          '',
+          'Se você não fez esta solicitação, ignore esta mensagem.',
+        ].join('\n'),
+      });
+    } catch (error) {
+      const smtpError = error as {
+        code?: unknown;
+        command?: unknown;
+        responseCode?: unknown;
+      };
+
+      this.logger.error(
+        [
+          'Falha no transporte SMTP',
+          `code=${this.safeDiagnostic(smtpError.code)}`,
+          `command=${this.safeDiagnostic(smtpError.command)}`,
+          `responseCode=${this.safeDiagnostic(smtpError.responseCode)}`,
+        ].join(' '),
+      );
+      throw error;
+    }
+  }
+
+  private safeDiagnostic(value: unknown): string {
+    const diagnostic = String(value ?? 'unknown');
+    return /^[A-Za-z0-9_-]{1,32}$/.test(diagnostic)
+      ? diagnostic
+      : 'unknown';
   }
 }
