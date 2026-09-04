@@ -81,8 +81,8 @@ export class MailService {
       'Se você não fez esta solicitação, ignore esta mensagem.',
     ].join('\n');
 
-    if (this.mailtrapApiToken && this.mailtrapInboxId) {
-      await this.sendViaMailtrapSandboxApi({ to, subject, text });
+    if (this.mailtrapApiToken) {
+      await this.sendViaMailtrapApi({ to, subject, text });
       return;
     }
 
@@ -116,7 +116,7 @@ export class MailService {
     }
   }
 
-  private async sendViaMailtrapSandboxApi(message: {
+  private async sendViaMailtrapApi(message: {
     to: string;
     subject: string;
     text: string;
@@ -124,12 +124,20 @@ export class MailService {
     let response: Response;
 
     try {
+      const sandbox = Boolean(this.mailtrapInboxId);
+      const url = sandbox
+        ? `https://sandbox.api.mailtrap.io/api/send/${encodeURIComponent(this.mailtrapInboxId)}`
+        : 'https://send.api.mailtrap.io/api/send';
+      const authorizationHeader: Record<string, string> = sandbox
+        ? { 'Api-Token': this.mailtrapApiToken }
+        : { Authorization: `Bearer ${this.mailtrapApiToken}` };
+
       response = await fetch(
-        `https://sandbox.api.mailtrap.io/api/send/${encodeURIComponent(this.mailtrapInboxId)}`,
+        url,
         {
           method: 'POST',
           headers: {
-            'Api-Token': this.mailtrapApiToken,
+            ...authorizationHeader,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

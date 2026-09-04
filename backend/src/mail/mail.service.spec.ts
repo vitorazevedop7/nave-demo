@@ -47,6 +47,42 @@ describe('MailService', () => {
     );
   });
 
+  it('envia a recuperação pela API HTTPS transacional em produção', async () => {
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue({ ok: true, status: 200 } as Response);
+    const service = new MailService(
+      new ConfigService({
+        FRONTEND_URL: 'https://nave-app.example',
+        MAILTRAP_API_TOKEN: 'production-api-token',
+        MAILTRAP_FROM_EMAIL: 'nao-responda@naveosc.com',
+      }),
+    );
+
+    await service.sendPasswordReset({
+      to: 'gestora@example.com',
+      token: 'reset-token',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0];
+    const body = JSON.parse(String(options?.body));
+
+    expect(url).toBe('https://send.api.mailtrap.io/api/send');
+    expect(options).toMatchObject({
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer production-api-token',
+        'Content-Type': 'application/json',
+      },
+    });
+    expect(body).toMatchObject({
+      from: { email: 'nao-responda@naveosc.com', name: 'NAVE' },
+      to: [{ email: 'gestora@example.com' }],
+      subject: 'Redefinição de senha — NAVE',
+    });
+  });
+
   it('registra somente o status seguro quando a API rejeita o envio', async () => {
     jest
       .spyOn(global, 'fetch')
