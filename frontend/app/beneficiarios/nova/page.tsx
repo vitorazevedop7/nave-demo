@@ -417,19 +417,8 @@ export default function NovaBeneficiaria() {
               </select>
             </div>
 
-            {/* Ocupação */}
-            <div>
-              <label htmlFor="ocupacao" style={labelStyle}>Ocupação</label>
-              <input
-                id="ocupacao" type="text" value={form.ocupacao}
-                placeholder="Ex: Doméstica, Vendedora..."
-                onChange={(e) => handleChange("ocupacao", e.target.value)}
-                onFocus={focusGreen} onBlur={blurReset}
-                style={inputBase}
-              />
-            </div>
-
-            {/* Situação de emprego */}
+            {/* Situação de emprego + Ocupação (mesma linha) */}
+            <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
             <div>
               <label htmlFor="empregada" style={labelStyle}>Situação de emprego</label>
               <select
@@ -442,6 +431,18 @@ export default function NovaBeneficiaria() {
                 <option value="true">Empregada</option>
                 <option value="false">Desempregada</option>
               </select>
+            </div>
+
+              <div>
+                <label htmlFor="ocupacao" style={labelStyle}>Ocupação</label>
+                <input
+                  id="ocupacao" type="text" value={form.ocupacao}
+                  placeholder="Ex: Doméstica, Vendedora..."
+                  onChange={(e) => handleChange("ocupacao", e.target.value)}
+                  onFocus={focusGreen} onBlur={blurReset}
+                  style={inputBase}
+                />
+              </div>
             </div>
 
             {/* Status */}

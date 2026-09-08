@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useId } from "react";
+import { Printer } from "lucide-react";
 import { fetchAuth, getUsuario } from "@/lib/auth";
 import { API_URL, extrairMensagemErro, mensagemDeErro } from "@/lib/api";
 import { formatarTimestamp, hojeInputDate, paraInputDate, parseDataPura } from "@/lib/date";
@@ -528,6 +529,8 @@ export default function Prontuarios() {
 
   // Seletor PDF
   const [showPdfSelector, setShowPdfSelector] = useState(false);
+  // Atalho de PDF direto da listagem: guarda o agendamento ate o prontuario carregar
+  const [pdfDiretoAgId, setPdfDiretoAgId] = useState<string | null>(null);
   const [pdfSelectedSections, setPdfSelectedSections] = useState<Set<string>>(new Set());
   const [pdfSectionsData, setPdfSectionsData] = useState<Array<{key: string; label: string; fields: Array<{key: string; label: string}>}>>([]);
   const [pdfSelectedFields, setPdfSelectedFields] = useState<Record<string, Set<string>>>({});
@@ -652,7 +655,8 @@ export default function Prontuarios() {
       civil: normalizarSelecionavel("civil", b?.estado_civil || ""),
       escolaridade: normalizarSelecionavel("escolaridade", b?.escolaridade || ""),
       ocupacao: b?.ocupacao || "",
-      profissao: b?.ocupacao || "",
+      // Profissao (formacao) e um campo proprio da anamnese: nao herda a ocupacao da beneficiaria
+      profissao: "",
       desempregado: typeof b?.empregada === "boolean" ? (b.empregada ? "Não" : "Sim") : "",
       data_atendimento: hojeInputDate(),
     };
@@ -1025,6 +1029,26 @@ export default function Prontuarios() {
     setShowPdfSelector(true);
   };
 
+  // Atalho de PDF a partir da coluna de acoes: abrirModalEspecialidade carrega o
+  // prontuario de forma assincrona, entao o seletor so pode abrir depois que o
+  // modalType e os formularios ja estiverem preenchidos.
+  useEffect(() => {
+    if (!pdfDiretoAgId) return;
+    if (!agendamentoSelecionado || agendamentoSelecionado.id !== pdfDiretoAgId) return;
+    if (!modalType) {
+      if (temRegistroRestrito || erroConsultaAgendamento) setPdfDiretoAgId(null);
+      return;
+    }
+    if (podeGerarPdf) abrirSeletorPdf();
+    setPdfDiretoAgId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfDiretoAgId, modalType, agendamentoSelecionado, podeGerarPdf, temRegistroRestrito, erroConsultaAgendamento]);
+
+  const imprimirDaListagem = (ag: Agendamento) => {
+    setPdfDiretoAgId(ag.id);
+    void abrirModalEspecialidade(ag);
+  };
+
   const imprimirProntuario = (selectedSections: Set<string>, selectedFields: Record<string, Set<string>>) => {
     if (!agendamentoSelecionado) return;
     const nome = agendamentoSelecionado.beneficiarias?.nome || "Paciente";
@@ -1179,6 +1203,7 @@ export default function Prontuarios() {
                         </span>
                       </td>
                       <td style={{ padding: "14px 20px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <button
                           onClick={() => abrirModalEspecialidade(ag)}
                           disabled={!!loadingAgId || !ag.beneficiaria_id}
@@ -1187,6 +1212,30 @@ export default function Prontuarios() {
                         >
                           {isLoadingRow ? "Carregando..." : labelBtn}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => imprimirDaListagem(ag)}
+                          disabled={!!loadingAgId || !ag.beneficiaria_id}
+                          title="Imprimir PDF"
+                          aria-label="Imprimir PDF"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "30px",
+                            height: "30px",
+                            flexShrink: 0,
+                            background: "transparent",
+                            border: "1px solid #e8ded3",
+                            borderRadius: "6px",
+                            color: "#6B5E54",
+                            cursor: (loadingAgId || !ag.beneficiaria_id) ? "not-allowed" : "pointer",
+                            opacity: (loadingAgId || !ag.beneficiaria_id) ? 0.5 : 1,
+                          }}
+                        >
+                          <Printer size={14} />
+                        </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -2181,7 +2230,7 @@ function PdfSelectorModal({
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Selecionar conteúdo do PDF" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }} onClick={onCancel}>
+    <div role="dialog" aria-modal="true" aria-label="Selecionar conteúdo do PDF" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }}>
       <div style={{ background: "#fff", borderRadius: "16px", width: "90%", maxWidth: "520px", maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 12px 40px rgba(0,0,0,0.22)" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "20px 24px", borderBottom: "0.5px solid #e0dbd2" }}>
           <h2 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#2B1F14" }}>Selecionar conteúdo para impressão</h2>
@@ -2280,7 +2329,7 @@ function Modal({ titulo, subtitulo, onClose, children }: {
   }, [onClose]);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={titulo} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }} onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label={titulo} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
       <div style={{ background: "#fff", borderRadius: "16px", width: "95%", maxWidth: "700px", maxHeight: "90vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.2)", position: "relative" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "24px", borderBottom: "0.5px solid #e0dbd2", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
           <div>

@@ -9,7 +9,7 @@ interface ModalProps {
   children?: React.ReactNode;
   footer?: React.ReactNode;
   maxWidth?: number | string;
-  /** Fecha ao clicar no fundo (default: true) */
+  /** Fecha ao clicar no fundo (default: false) */
   closeOnBackdrop?: boolean;
 }
 
@@ -20,7 +20,7 @@ export default function Modal({
   children,
   footer,
   maxWidth = 460,
-  closeOnBackdrop = true,
+  closeOnBackdrop = false,
 }: ModalProps) {
   useEffect(() => {
     if (!open) return;

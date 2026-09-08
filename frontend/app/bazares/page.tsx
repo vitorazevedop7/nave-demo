@@ -7,6 +7,7 @@ import { formatarDataPura, paraInputDate, parseDataPura } from "@/lib/date";
 import { useDialog } from "@/components/DialogProvider";
 import Button from "@/components/Button";
 import type { Bazar, BazarUsuario as Usuario } from "@/lib/types/bazares";
+import { formatarMoedaInput, moedaParaNumero, numeroParaMoeda } from "@/lib/moeda";
 
 interface UserInfo {
   id: string;
@@ -149,7 +150,7 @@ export default function Bazares() {
       local: bazar.local || "",
       descricao: bazar.descricao || "",
       observacoes: bazar.observacoes || "",
-      total_arrecadado: bazar.total_arrecadado?.toString() || "",
+      total_arrecadado: numeroParaMoeda(bazar.total_arrecadado),
       profissional_ids: bazar.bazar_profissionais.map((bp) => bp.usuarios.id),
     });
     setShowForm(true);
@@ -168,9 +169,7 @@ export default function Bazares() {
         local: formData.local || undefined,
         descricao: formData.descricao || undefined,
         observacoes: formData.observacoes || undefined,
-        total_arrecadado: formData.total_arrecadado
-          ? parseFloat(formData.total_arrecadado.replace(",", "."))
-          : undefined,
+        total_arrecadado: moedaParaNumero(formData.total_arrecadado) ?? undefined,
         profissional_ids: formData.profissional_ids,
       };
 
@@ -676,7 +675,6 @@ export default function Bazares() {
               justifyContent: "center",
               zIndex: 1000,
             }}
-            onClick={() => resetForm()}
           >
             <div
               style={{
@@ -691,9 +689,12 @@ export default function Bazares() {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#2B1F14", margin: "0 0 20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 20px" }}>
+                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#2B1F14", margin: 0 }}>
                 {editingId ? "Editar Bazar" : "Novo Bazar"}
               </h2>
+                <button type="button" onClick={() => resetForm()} aria-label="Fechar" title="Fechar" style={{ background: "none", border: "none", fontSize: "24px", lineHeight: 1, cursor: "pointer", color: "#9B8E84", padding: 0 }}>×</button>
+              </div>
 
               <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div>
@@ -831,13 +832,13 @@ export default function Bazares() {
                       Total Arrecadado
                     </label>
                     <input id="bazar-campo-7"
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="numeric"
                       value={formData.total_arrecadado}
                       onChange={(e) =>
-                        setFormData({ ...formData, total_arrecadado: e.target.value })
+                        setFormData({ ...formData, total_arrecadado: formatarMoedaInput(e.target.value) })
                       }
-                      placeholder="0.00"
+                      placeholder="0,00"
                       style={{
                         width: "100%",
                         padding: "10px 12px",

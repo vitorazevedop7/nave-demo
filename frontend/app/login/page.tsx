@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useState, FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { API_URL, extrairMensagemErro } from "@/lib/api";
 
 const LoginLogo3D = dynamic(() => import("@/components/LoginLogo3D"), {
@@ -24,6 +25,7 @@ const LoginLogo3D = dynamic(() => import("@/components/LoginLogo3D"), {
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -171,17 +173,19 @@ export default function LoginPage() {
               >
                 SENHA
               </label>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
               <input
                 id="password"
-                type="password"
+                  type={showPassword ? "text" : "password"}
                 required
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 style={{
+                    width: "100%",
                   height: "46px",
-                  padding: "0 16px",
+                    padding: "0 46px 0 16px",
                   borderRadius: "12px",
                   border: "1px solid rgba(210, 195, 178, 0.7)",
                   background: "rgba(248, 244, 238, 0.6)",
@@ -193,6 +197,28 @@ export default function LoginPage() {
                 onFocus={(e) => (e.currentTarget.style.borderColor = "#e07a6e")}
                 onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(210, 195, 178, 0.7)")}
               />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  style={{
+                    position: "absolute",
+                    right: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "transparent",
+                    border: "none",
+                    padding: "4px",
+                    cursor: "pointer",
+                    color: "#8a7f70",
+                    lineHeight: 0,
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               <Link
                 href="/esqueci-minha-senha"
                 style={{

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useId, cloneElement, isValidElement }
 import { fetchAuth } from "@/lib/auth";
 import { API_URL, extrairMensagemErro, mensagemDeErro } from "@/lib/api";
 import { useDialog } from "@/components/DialogProvider";
+import { formatarMoedaInput, moedaParaNumero, numeroParaMoeda } from "@/lib/moeda";
 import { formatarDataPura, hojeInputDate, parseDataPura } from "@/lib/date";
 import Button from "@/components/Button";
 
@@ -43,6 +44,14 @@ interface Doacao {
 type ModalType = "doacao" | "doador" | "campanha" | "gerenciar-doadores" | null;
 
 /* ─── Helpers ───────────────────────────────────────────────── */
+
+/** Comparacao tolerante a acento e caixa, para os campos de busca. */
+function contemBusca(texto: string, busca: string) {
+  const limpar = (v: string) =>
+    v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  if (!busca.trim()) return true;
+  return limpar(texto).includes(limpar(busca));
+}
 
 function fmtBRL(v: number | null) {
   if (!v) return "R$ 0,00";
@@ -367,7 +376,6 @@ function ConfirmModal({
         justifyContent: "center",
         padding: "16px",
       }}
-      onClick={(e) => e.target === e.currentTarget && onCancel()}
     >
       <div
         style={{
@@ -419,7 +427,6 @@ function Modal({
         justifyContent: "center",
         padding: "16px",
       }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         style={{
@@ -523,6 +530,16 @@ export default function Doacoes() {
   const [formDoador, setFormDoador] = useState({ nome: "", tipo: "PESSOA_FISICA", telefone: "", email: "" });
   const [formCampanha, setFormCampanha] = useState({ nome: "", descricao: "", meta_valor: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  /* busca dentro do modal de registrar doacao */
+  const [buscaDoador, setBuscaDoador] = useState("");
+  const [buscaCampanha, setBuscaCampanha] = useState("");
+
+  useEffect(() => {
+    if (activeModal !== "doacao") {
+      setBuscaDoador("");
+      setBuscaCampanha("");
+    }
+  }, [activeModal]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -581,7 +598,7 @@ export default function Doacoes() {
         observacao: formDoacao.observacao || undefined,
         campanha_id: formDoacao.campanha_id || undefined,
       };
-      if (formDoacao.tipo === "DINHEIRO") body.valor = parseFloat(formDoacao.valor.replace(",", "."));
+      if (formDoacao.tipo === "DINHEIRO") body.valor = moedaParaNumero(formDoacao.valor) ?? undefined;
       else body.quantidade = formDoacao.quantidade;
 
       const r = await fetchAuth(`${API_URL}/doacoes`, {
@@ -636,7 +653,7 @@ export default function Doacoes() {
       const body = {
         nome: formCampanha.nome,
         descricao: formCampanha.descricao || undefined,
-        meta_valor: formCampanha.meta_valor ? parseFloat(formCampanha.meta_valor.replace(",", ".")) : undefined,
+        meta_valor: moedaParaNumero(formCampanha.meta_valor) ?? undefined,
       };
 
       if (editingCampanhaId) {
@@ -674,7 +691,7 @@ export default function Doacoes() {
     setFormCampanha({
       nome: c.nome,
       descricao: c.descricao || "",
-      meta_valor: c.meta_valor ? c.meta_valor.toString() : "",
+      meta_valor: numeroParaMoeda(c.meta_valor),
     });
     setActiveModal("campanha");
   }
@@ -913,9 +930,19 @@ export default function Doacoes() {
       {activeModal === "doacao" && (
         <Modal title="Registrar Doação" onClose={() => setActiveModal(null)}>
           <Field label="Doador">
-            <select style={inputStyle} value={formDoacao.doador_id} onChange={(e) => setFormDoacao({ ...formDoacao, doador_id: e.target.value })}>
+            <input
+              type="text"
+              placeholder="Buscar doador pelo nome…"
+              aria-label="Buscar doador pelo nome"
+              style={{ ...inputStyle, marginBottom: "6px" }}
+              value={buscaDoador}
+              onChange={(e) => setBuscaDoador(e.target.value)}
+            />
+            <select aria-label="Doador" style={inputStyle} value={formDoacao.doador_id} onChange={(e) => setFormDoacao({ ...formDoacao, doador_id: e.target.value })}>
               <option value="">Anônimo</option>
-              {doadores.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}
+              {doadores
+                .filter((d) => d.id === formDoacao.doador_id || contemBusca(d.nome, buscaDoador))
+                .map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}
             </select>
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
@@ -933,7 +960,7 @@ export default function Doacoes() {
           </div>
           {formDoacao.tipo === "DINHEIRO" ? (
             <Field label="Valor (R$)">
-              <input type="text" placeholder="0,00" style={inputStyle} value={formDoacao.valor} onChange={(e) => setFormDoacao({ ...formDoacao, valor: e.target.value })} />
+              <input type="text" inputMode="numeric" placeholder="0,00" style={inputStyle} value={formDoacao.valor} onChange={(e) => setFormDoacao({ ...formDoacao, valor: formatarMoedaInput(e.target.value) })} />
             </Field>
           ) : (
             <Field label="Quantidade / Descrição">
@@ -941,9 +968,20 @@ export default function Doacoes() {
             </Field>
           )}
           <Field label="Campanha (opcional)">
-            <select style={inputStyle} value={formDoacao.campanha_id} onChange={(e) => setFormDoacao({ ...formDoacao, campanha_id: e.target.value })}>
+            <input
+              type="text"
+              placeholder="Buscar campanha pelo nome…"
+              aria-label="Buscar campanha pelo nome"
+              style={{ ...inputStyle, marginBottom: "6px" }}
+              value={buscaCampanha}
+              onChange={(e) => setBuscaCampanha(e.target.value)}
+            />
+            <select aria-label="Campanha" style={inputStyle} value={formDoacao.campanha_id} onChange={(e) => setFormDoacao({ ...formDoacao, campanha_id: e.target.value })}>
               <option value="">Sem campanha</option>
-              {campanhas.filter(c => !c.encerrada_em).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              {campanhas
+                .filter((c) => !c.encerrada_em)
+                .filter((c) => c.id === formDoacao.campanha_id || contemBusca(c.nome, buscaCampanha))
+                .map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </select>
           </Field>
           <Field label="Observação (opcional)">
@@ -1009,7 +1047,7 @@ export default function Doacoes() {
             <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={formCampanha.descricao} onChange={(e) => setFormCampanha({ ...formCampanha, descricao: e.target.value })} />
           </Field>
           <Field label="Meta de Arrecadação (R$)">
-            <input type="text" placeholder="Deixe vazio para sem meta" style={inputStyle} value={formCampanha.meta_valor} onChange={(e) => setFormCampanha({ ...formCampanha, meta_valor: e.target.value })} />
+            <input type="text" inputMode="numeric" placeholder="Deixe vazio para sem meta" style={inputStyle} value={formCampanha.meta_valor} onChange={(e) => setFormCampanha({ ...formCampanha, meta_valor: formatarMoedaInput(e.target.value) })} />
           </Field>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
             <Button variant="ghost" onClick={resetFormCampanha}>Cancelar</Button>
