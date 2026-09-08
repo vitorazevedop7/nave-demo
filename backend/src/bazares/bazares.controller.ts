@@ -30,13 +30,13 @@ export class BazaresController {
   constructor(private readonly bazaresService: BazaresService) {}
 
   @Get()
-  @Roles('GESTORA', 'TRIADORA', 'PROFISSIONAL')
+  @Roles('GESTORA', 'TRIADORA')
   findAll(@Query() query: ListBazarQueryDto) {
     return this.bazaresService.findAll(query);
   }
 
   @Get(':id')
-  @Roles('GESTORA', 'TRIADORA', 'PROFISSIONAL')
+  @Roles('GESTORA', 'TRIADORA')
   findOne(@Param('id', UUID_PIPE) id: string) {
     return this.bazaresService.findOne(id);
   }

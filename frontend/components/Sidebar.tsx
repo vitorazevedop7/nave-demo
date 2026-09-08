@@ -20,7 +20,7 @@ const menuSections: { title: string; items: MenuItem[] }[] = [
     title: "GESTÃO",
     items: [
       { name: "Profissionais", href: "/profissionais", perfis: ["GESTORA"] },
-      { name: "Beneficiárias", href: "/beneficiarios", perfis: ["GESTORA"] },
+      { name: "Beneficiárias", href: "/beneficiarios", perfis: ["GESTORA", "TRIADORA"] },
       { name: "Agenda", href: "/agenda", perfis: ["GESTORA", "TRIADORA", "PROFISSIONAL"] },
     ],
   },

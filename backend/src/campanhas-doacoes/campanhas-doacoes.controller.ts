@@ -28,13 +28,13 @@ export class CampanhasDoacoesController {
 
   // Campanhas não têm dado pessoal: a leitura fica aberta a toda a equipe.
   @Get()
-  @Roles('GESTORA', 'TRIADORA', 'PROFISSIONAL')
+  @Roles('GESTORA', 'TRIADORA')
   findAll() {
     return this.service.findAll();
   }
 
   @Get(':id')
-  @Roles('GESTORA', 'TRIADORA', 'PROFISSIONAL')
+  @Roles('GESTORA', 'TRIADORA')
   findOne(@Param('id', UUID_PIPE) id: string) {
     return this.service.findOne(id);
   }
