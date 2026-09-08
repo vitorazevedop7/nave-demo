@@ -9,7 +9,9 @@
 
 /** Aplica a máscara sobre o que o usuário digitou. Devolve "" quando não há dígito. */
 export function formatarMoedaInput(bruto: string): string {
-  const digitos = (bruto ?? "").replace(/\D/g, "").slice(0, 15);
+  // Zeros a esquerda saem fora para que apagar ate o fim limpe o campo
+  // (a meta de arrecadacao precisa poder voltar a ficar vazia).
+  const digitos = (bruto ?? "").replace(/\D/g, "").replace(/^0+/, "").slice(0, 15);
   if (!digitos) return "";
   const centavos = Number(digitos);
   return (centavos / 100).toLocaleString("pt-BR", {
