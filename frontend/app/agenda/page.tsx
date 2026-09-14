@@ -120,7 +120,7 @@ function obterTituloAgendamento(ag: Agendamento): string {
 
   // 2. Se não tiver, verifica se tem o nome do Bazar nas observações
   if (ag.observacoes && ag.observacoes.includes('Bazar:')) {
-    return ag.observacoes; // Retorna "Bazar: Nome do Bazar - Local"
+    return ag.observacoes.replace(/^\[bazar:[^\]]+\]\s*/, '');
   }
 
   // 3. Caso seja um evento bloqueado/genérico sem nome

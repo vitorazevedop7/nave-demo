@@ -25,6 +25,22 @@ const BAZAR_INCLUDE = {
   },
 } as const;
 
+// Os agendamentos de bazar não têm uma FK própria. Esta etiqueta os associa ao
+// bazar de forma determinística, sem alterar o schema em produção.
+function observacaoAgendamentoBazar(
+  bazar: { id: string; nome: string; local: string | null },
+) {
+  return `[bazar:${bazar.id}] Bazar: ${bazar.nome} - ${bazar.local || 'Local a definir'}`;
+}
+
+function periodoDaDataPura(data: Date) {
+  const dia = data.toISOString().slice(0, 10);
+  return {
+    inicio: new Date(`${dia}T00:00:00`),
+    fim: new Date(`${dia}T23:59:59.999`),
+  };
+}
+
 @Injectable()
 export class BazaresService {
   constructor(private readonly prisma: PrismaService) {}
@@ -101,10 +117,9 @@ export class BazaresService {
         });
 
         // Criar agendamentos para cada profissional
-        const bazarDate = new Date(dto.data);
         const horaInicio = dto.horario_inicio
           ? new Date(`${dto.data}T${dto.horario_inicio}`)
-          : new Date(bazarDate.setHours(9, 0, 0)); // Padrão 09:00
+          : new Date(`${dto.data}T09:00:00`); // Padrão 09:00
 
         for (const profissionalId of dto.profissional_ids) {
           await tx.agendamentos.create({
@@ -112,7 +127,7 @@ export class BazaresService {
               profissional_id: profissionalId,
               data_hora: horaInicio,
               status: 'AGENDADO',
-              observacoes: `Bazar: ${bazar.nome} - ${bazar.local || 'Local a definir'}`,
+              observacoes: observacaoAgendamentoBazar(bazar),
             },
           });
         }
@@ -126,7 +141,7 @@ export class BazaresService {
   }
 
   async update(id: string, dto: UpdateBazarDto) {
-    await this.findOne(id);
+    const atual = await this.findOne(id);
 
     // Validar profissionais se houver
     if (dto.profissional_ids && dto.profissional_ids.length > 0) {
@@ -171,12 +186,7 @@ export class BazaresService {
 
         // Remover agendamentos associados
         await tx.agendamentos.deleteMany({
-          where: {
-            data_hora: bazar.data,
-            observacoes: {
-              contains: bazar.nome,
-            },
-          },
+          where: this.whereAgendamentosDoBazar(atual),
         });
 
         // Adicionar novos profissionais
@@ -201,7 +211,7 @@ export class BazaresService {
                 profissional_id: profissionalId,
                 data_hora: new Date(horaInicio),
                 status: 'AGENDADO',
-                observacoes: `Bazar: ${bazar.nome} - ${bazar.local || 'Local a definir'}`,
+                observacoes: observacaoAgendamentoBazar(bazar),
               },
             });
           }
@@ -219,14 +229,10 @@ export class BazaresService {
     const bazar = await this.findOne(id);
 
     return this.prisma.$transaction(async (tx) => {
-      // Remover agendamentos associados
+      // Remove os bloqueios identificados pelo bazar. A segunda condição cobre
+      // registros antigos, criados antes da etiqueta, que ainda estavam visíveis.
       await tx.agendamentos.deleteMany({
-        where: {
-          data_hora: bazar.data,
-          observacoes: {
-            contains: bazar.nome,
-          },
-        },
+        where: this.whereAgendamentosDoBazar(bazar),
       });
 
       await tx.bazar_profissionais.deleteMany({
@@ -236,6 +242,20 @@ export class BazaresService {
       // Remover relações bazar_profissionais (cascata automática)
       return tx.bazares.delete({ where: { id } });
     });
+  }
+
+  private whereAgendamentosDoBazar(bazar: { id: string; nome: string; data: Date }) {
+    const { inicio, fim } = periodoDaDataPura(bazar.data);
+
+    return {
+      OR: [
+        { observacoes: { contains: `[bazar:${bazar.id}]` } },
+        {
+          data_hora: { gte: inicio, lte: fim },
+          observacoes: { startsWith: `Bazar: ${bazar.nome} -` },
+        },
+      ],
+    };
   }
 
   private async validarProfissionais(profissional_ids: string[]) {

@@ -148,18 +148,32 @@ describe('BazaresService', () => {
   });
 
   describe('remove', () => {
-    it('exclui o bazar dentro de uma transação', async () => {
+    it('exclui o bazar e seus bloqueios de agenda numa transação, mesmo com horário', async () => {
       prisma.bazares.findUnique.mockResolvedValue({
-        id: '1',
-        nome: 'Bazar',
-        data: new Date('2026-05-15'),
+        id: 'bazar-1',
+        nome: 'Bazar de teste',
+        data: new Date('2026-09-20T00:00:00.000Z'),
       } as never);
 
-      await service.remove('1');
+      await service.remove('bazar-1');
 
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.agendamentos.deleteMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { observacoes: { contains: '[bazar:bazar-1]' } },
+            {
+              data_hora: {
+                gte: new Date('2026-09-20T00:00:00'),
+                lte: new Date('2026-09-20T23:59:59.999'),
+              },
+              observacoes: { startsWith: 'Bazar: Bazar de teste -' },
+            },
+          ],
+        },
+      });
       expect(prisma.bazares.delete).toHaveBeenCalledWith({
-        where: { id: '1' },
+        where: { id: 'bazar-1' },
       });
     });
   });
