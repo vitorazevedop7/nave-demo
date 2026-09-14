@@ -41,6 +41,23 @@ function periodoDaDataPura(data: Date) {
   };
 }
 
+/**
+ * A data e a hora de um bazar são preenchidas como horário civil da ONG
+ * (Brasília). A coluna de agendamentos é serializada como UTC pela API, então
+ * é preciso explicitar o fuso para que, por exemplo, 10:00 continue sendo
+ * mostrado como 10:00 no navegador do usuário.
+ */
+function dataHoraBazar(data: Date | string, horario?: Date | string | null) {
+  const dia = typeof data === 'string' ? data.slice(0, 10) : data.toISOString().slice(0, 10);
+  const hora = !horario
+    ? '09:00'
+    : typeof horario === 'string'
+      ? (horario.includes('T') ? horario.slice(11, 16) : horario.slice(0, 5))
+      : horario.toISOString().slice(11, 16);
+
+  return new Date(`${dia}T${hora}:00-03:00`);
+}
+
 @Injectable()
 export class BazaresService {
   constructor(private readonly prisma: PrismaService) {}
@@ -117,9 +134,7 @@ export class BazaresService {
         });
 
         // Criar agendamentos para cada profissional
-        const horaInicio = dto.horario_inicio
-          ? new Date(`${dto.data}T${dto.horario_inicio}`)
-          : new Date(`${dto.data}T09:00:00`); // Padrão 09:00
+        const horaInicio = dataHoraBazar(dto.data, dto.horario_inicio);
 
         for (const profissionalId of dto.profissional_ids) {
           await tx.agendamentos.create({
@@ -198,18 +213,14 @@ export class BazaresService {
             })),
           });
 
-          // Criar novos agendamentos
-          // `bazar.data` é coluna DATE (meia-noite UTC): o dia em UTC é o correto.
-          const dia = (dto.data ?? bazar.data.toISOString()).slice(0, 10);
-          const horaInicio = dto.horario_inicio
-            ? new Date(`${dia}T${dto.horario_inicio}`)
-            : new Date(bazar.data).setHours(9, 0, 0);
+          // Criar novos agendamentos no horário local do bazar.
+          const horaInicio = dataHoraBazar(bazar.data, bazar.horario_inicio);
 
           for (const profissionalId of dto.profissional_ids) {
             await tx.agendamentos.create({
               data: {
                 profissional_id: profissionalId,
-                data_hora: new Date(horaInicio),
+                data_hora: horaInicio,
                 status: 'AGENDADO',
                 observacoes: observacaoAgendamentoBazar(bazar),
               },

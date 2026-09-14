@@ -119,6 +119,29 @@ describe('BazaresService', () => {
       );
       expect(prisma.bazares.create).not.toHaveBeenCalled();
     });
+
+    it('grava o bloqueio de agenda no horário de Brasília, independentemente do fuso do servidor', async () => {
+      prisma.usuarios.findFirst.mockResolvedValue({
+        id: PROFISSIONAL_ID,
+      } as never);
+      prisma.bazares.create.mockResolvedValue({
+        id: 'bazar-1',
+        nome: 'Bazar com horário',
+        local: null,
+      } as never);
+      prisma.bazares.findUnique.mockResolvedValue({ id: 'bazar-1' } as never);
+
+      await service.create(
+        { ...dto, data: '2026-09-21', horario_inicio: '10:00' },
+        'gestora-id',
+      );
+
+      expect(prisma.agendamentos.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          data_hora: new Date('2026-09-21T13:00:00.000Z'),
+        }) as unknown,
+      });
+    });
   });
 
   describe('update', () => {
