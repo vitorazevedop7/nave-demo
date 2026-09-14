@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Plus, X, Clock, User, Stethoscope } from 'lucide-react';
 import {
   Agendamento,
@@ -515,7 +516,7 @@ export default function AgendaPage() {
       </div>
 
       {/* Modal lista do dia */}
-      {modalDia && (
+      {modalDia && createPortal(
         <div role="dialog" aria-modal="true" aria-label="Agendamentos do dia" style={overlayStyle} onClick={() => { setModalDia(null); setAgDetalhes(null); }}>
           <div style={cardStyle} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -552,10 +553,11 @@ export default function AgendaPage() {
             )}
           </div>
         </div>
+        , document.body
       )}
 
       {/* Modal detalhes (timeline view) */}
-      {agDetalhes && !modalDia && (
+      {agDetalhes && !modalDia && createPortal(
         <div role="dialog" aria-modal="true" aria-label="Detalhes do agendamento" style={overlayStyle} onClick={() => setAgDetalhes(null)}>
           <div style={cardStyle} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -565,6 +567,7 @@ export default function AgendaPage() {
             {renderDetalhes(agDetalhes)}
           </div>
         </div>
+        , document.body
       )}
 
       {/* Modal form */}

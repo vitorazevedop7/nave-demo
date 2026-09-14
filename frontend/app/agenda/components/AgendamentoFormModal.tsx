@@ -7,6 +7,7 @@ import { API_URL, extrairMensagemErro, mensagemDeErro } from '@/lib/api';
 import Button from '@/components/Button';
 import { formatCpf } from '@/lib/formatters';
 import { nomeEspecialidade } from '@/lib/visibilidade';
+import { createPortal } from 'react-dom';
 import {
   Agendamento,
   Profissional,
@@ -160,7 +161,7 @@ export default function AgendamentoFormModal({ agendamento, prefill, lockProfiss
   const benef = beneficiarias.find(b => b.id === beneficiariaId);
   const nomeBenef = agendamento?.beneficiarias?.nome ?? benef?.nome ?? '';
 
-  return (
+  return createPortal(
     <div role="dialog" aria-modal="true" aria-labelledby={ids.titulo} style={{
       position: 'fixed', inset: 0, zIndex: 1000,
       background: 'rgba(0,0,0,0.35)',
@@ -309,7 +310,8 @@ export default function AgendamentoFormModal({ agendamento, prefill, lockProfiss
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

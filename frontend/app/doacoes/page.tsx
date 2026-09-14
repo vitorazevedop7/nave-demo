@@ -7,6 +7,7 @@ import { useDialog } from "@/components/DialogProvider";
 import { formatarMoedaInput, moedaParaNumero, numeroParaMoeda } from "@/lib/moeda";
 import { formatarDataPura, hojeInputDate, parseDataPura } from "@/lib/date";
 import Button from "@/components/Button";
+import { createPortal } from "react-dom";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 interface Doador {
@@ -360,7 +361,7 @@ function ConfirmModal({
   isLoading?: boolean;
 }) {
   useFecharComEsc(onCancel);
-  return (
+  return createPortal(
     <div
       role="alertdialog"
       aria-modal="true"
@@ -396,7 +397,8 @@ function ConfirmModal({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -411,7 +413,7 @@ function Modal({
   children: React.ReactNode;
 }) {
   useFecharComEsc(onClose);
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -463,7 +465,8 @@ function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -7,6 +7,7 @@ import { formatarDataPura, paraInputDate, parseDataPura } from "@/lib/date";
 import { useDialog } from "@/components/DialogProvider";
 import Button from "@/components/Button";
 import type { Bazar, BazarUsuario as Usuario } from "@/lib/types/bazares";
+import { createPortal } from "react-dom";
 import { formatarMoedaInput, moedaParaNumero, numeroParaMoeda } from "@/lib/moeda";
 
 interface UserInfo {
@@ -665,7 +666,7 @@ export default function Bazares() {
         </div>
 
         {/* Form Modal */}
-        {showForm && canEdit && (
+        {showForm && canEdit && createPortal(
           <div
             role="dialog"
             aria-modal="true"
@@ -946,6 +947,7 @@ export default function Bazares() {
               </form>
             </div>
           </div>
+          , document.body
         )}
       </div>
     </div>

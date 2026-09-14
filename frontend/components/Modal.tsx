@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   open: boolean;
@@ -33,7 +34,12 @@ export default function Modal({
 
   if (!open) return null;
 
-  return (
+  // Renderizado via portal em document.body: o <main> do LayoutShell usa
+  // backdropFilter, o que cria um containing block novo para position:fixed
+  // e faz esse overlay cobrir só a área de conteúdo, não a sidebar. Sem o
+  // portal, um clique perto da borda "vaza" pro que estiver por baixo da
+  // sidebar (ex: um link), navegando e perdendo o que estava no formulário.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -91,6 +97,7 @@ export default function Modal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

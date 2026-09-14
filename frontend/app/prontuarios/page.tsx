@@ -6,6 +6,7 @@ import { fetchAuth, getUsuario } from "@/lib/auth";
 import { API_URL, extrairMensagemErro, mensagemDeErro } from "@/lib/api";
 import { formatarTimestamp, hojeInputDate, paraInputDate, parseDataPura } from "@/lib/date";
 import Button from "@/components/Button";
+import { createPortal } from "react-dom";
 import { CarimboRestrito } from "@/components/AcessoProntuario";
 import ProntuarioSomenteLeitura from "@/components/ProntuarioSomenteLeitura";
 import VisibilidadeSelector from "@/components/VisibilidadeSelector";
@@ -2229,7 +2230,7 @@ function PdfSelectorModal({
     });
   };
 
-  return (
+  return createPortal(
     <div role="dialog" aria-modal="true" aria-label="Selecionar conteúdo do PDF" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }}>
       <div style={{ background: "#fff", borderRadius: "16px", width: "90%", maxWidth: "520px", maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 12px 40px rgba(0,0,0,0.22)" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "20px 24px", borderBottom: "0.5px solid #e0dbd2" }}>
@@ -2305,7 +2306,8 @@ function PdfSelectorModal({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -2328,7 +2330,7 @@ function Modal({ titulo, subtitulo, onClose, children }: {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div role="dialog" aria-modal="true" aria-label={titulo} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
       <div style={{ background: "#fff", borderRadius: "16px", width: "95%", maxWidth: "700px", maxHeight: "90vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.2)", position: "relative" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "24px", borderBottom: "0.5px solid #e0dbd2", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
@@ -2340,7 +2342,8 @@ function Modal({ titulo, subtitulo, onClose, children }: {
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
