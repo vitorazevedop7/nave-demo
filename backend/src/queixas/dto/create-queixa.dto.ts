@@ -1,8 +1,7 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateQueixaDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   triagem_id: string;
 
   @IsString()

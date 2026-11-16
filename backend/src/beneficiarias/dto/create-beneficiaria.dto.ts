@@ -1,6 +1,12 @@
-import { IsString, IsOptional, IsNotEmpty, IsBoolean } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
-export class CreateBeneficiarioDto {
+export class CreateBeneficiariaDto {
   @IsString()
   @IsNotEmpty()
   nome: string;
@@ -26,7 +32,7 @@ export class CreateBeneficiarioDto {
   tipo?: string; // ADULTA, CRIANCA, ADOLESCENTE
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   responsavel_id?: string;
 
   @IsOptional()

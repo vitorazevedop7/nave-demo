@@ -1,4 +1,4 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateBeneficiarioDto } from './create-beneficiaria.dto';
+import { PartialType } from '@nestjs/swagger';
+import { CreateBeneficiariaDto } from './create-beneficiaria.dto';
 
-export class UpdateBeneficiarioDto extends PartialType(CreateBeneficiarioDto) {}
+export class UpdateBeneficiariaDto extends PartialType(CreateBeneficiariaDto) {}

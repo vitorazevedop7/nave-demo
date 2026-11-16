@@ -8,6 +8,18 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import type { JwtPayload } from './jwt-user.interface';
+
+/**
+ * Hash bcrypt (mesmo custo dos hashes reais) de uma senha aleatória descartada.
+ * Quando o e-mail não existe, a senha informada é comparada com ele mesmo assim:
+ * o tempo de resposta fica equivalente ao de uma senha errada e não revela
+ * quais e-mails estão cadastrados.
+ */
+const HASH_FICTICIO =
+  '$2b$10$PGy3B0l1FFLzrBc1tojU1.xidQQ4b8qdMi7SAeeYUKnYCZWR4l6Dy';
+
+const CREDENCIAIS_INVALIDAS = 'Credenciais inválidas';
 
 @Injectable()
 export class AuthService {
@@ -21,18 +33,18 @@ export class AuthService {
   async login(dto: LoginDto) {
     const usuario = await this.buscarUsuarioParaLogin(dto.email);
 
-    if (!usuario) {
-      throw new UnauthorizedException('Credenciais inválidas');
-    }
+    const senhaValida = await bcrypt.compare(
+      dto.senha,
+      usuario?.senha_hash ?? HASH_FICTICIO,
+    );
 
-    const senhaValida = await bcrypt.compare(dto.senha, usuario.senha_hash);
-    if (!senhaValida) {
-      throw new UnauthorizedException('Credenciais inválidas');
+    if (!usuario || !senhaValida) {
+      throw new UnauthorizedException(CREDENCIAIS_INVALIDAS);
     }
 
     const perfis = usuario.perfis_usuario.map((p) => p.perfil);
 
-    const payload = {
+    const payload: JwtPayload = {
       sub: usuario.id,
       email: usuario.email,
       nome: usuario.nome,
@@ -54,7 +66,8 @@ export class AuthService {
   /**
    * Busca o usuário para autenticação, isolando falhas de infraestrutura
    * (banco fora do ar, sem tabelas, etc.) de credencial inválida: essas duas
-   * situações têm causas e respostas HTTP diferentes.
+   * situações têm causas e respostas HTTP diferentes. O e-mail informado não
+   * vai para o log.
    */
   private async buscarUsuarioParaLogin(email: string) {
     try {
@@ -71,7 +84,7 @@ export class AuthService {
       });
     } catch (erro) {
       this.logger.error(
-        `Falha de infraestrutura ao autenticar "${email}": ${
+        `Falha de infraestrutura durante o login: ${
           erro instanceof Error ? erro.message : String(erro)
         }`,
         erro instanceof Error ? erro.stack : undefined,

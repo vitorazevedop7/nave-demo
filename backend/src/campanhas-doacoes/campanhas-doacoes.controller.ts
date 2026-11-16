@@ -1,35 +1,57 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
-import { RolesGuard } from '../auth/roles.guard';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { UUID_PIPE } from '../common/pipes/uuid.pipe';
 import { CampanhasDoacoesService } from './campanhas-doacoes.service';
 import { CreateCampanhaDto } from './dto/create-campanha.dto';
 import { UpdateCampanhaDto } from './dto/update-campanha.dto';
 
+@ApiTags('campanhas-doacoes')
+@ApiBearerAuth()
 @Controller('campanhas-doacoes')
 @UseGuards(RolesGuard)
+@Roles('GESTORA')
 export class CampanhasDoacoesController {
   constructor(private readonly service: CampanhasDoacoesService) {}
 
+  // Campanhas não têm dado pessoal: a leitura fica aberta a toda a equipe.
   @Get()
   @Roles('GESTORA', 'TRIADORA', 'PROFISSIONAL')
-  findAll() { return this.service.findAll(); }
+  findAll() {
+    return this.service.findAll();
+  }
 
   @Get(':id')
   @Roles('GESTORA', 'TRIADORA', 'PROFISSIONAL')
-  findOne(@Param('id') id: string) { return this.service.findOne(id); }
+  findOne(@Param('id', UUID_PIPE) id: string) {
+    return this.service.findOne(id);
+  }
 
   @Post()
-  @Roles('GESTORA')
-  create(@Body() dto: CreateCampanhaDto) { return this.service.create(dto); }
+  create(@Body() dto: CreateCampanhaDto) {
+    return this.service.create(dto);
+  }
 
   @Patch(':id')
-  @Roles('GESTORA')
-  update(@Param('id') id: string, @Body() dto: UpdateCampanhaDto) {
+  update(@Param('id', UUID_PIPE) id: string, @Body() dto: UpdateCampanhaDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('GESTORA')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) { return this.service.remove(id); }
+  async remove(@Param('id', UUID_PIPE) id: string): Promise<void> {
+    await this.service.remove(id);
+  }
 }

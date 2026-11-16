@@ -7,23 +7,33 @@ import {
   Param,
   Body,
   Query,
-  Request,
   UseGuards,
   HttpCode,
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { JwtUser } from '../auth/jwt-user.interface';
 import { RolesGuard } from '../auth/roles.guard';
+import { UUID_PIPE } from '../common/pipes/uuid.pipe';
 import { Roles } from '../auth/roles.decorator';
 import { AgendamentosService } from './agendamentos.service';
 import { CreateAgendamentoDto } from './dto/create-agendamento.dto';
 import { UpdateAgendamentoDto } from './dto/update-agendamento.dto';
 import { ListAgendamentoQueryDto } from './dto/list-agendamento-query.dto';
 
-type AuthenticatedRequest = {
-  user: { id: string; perfis?: string[] };
-};
+/** PROFISSIONAL sem perfil administrativo só agenda e edita a própria agenda. */
+function ehProfissionalPuro(usuario: JwtUser): boolean {
+  return (
+    usuario.perfis.includes('PROFISSIONAL') &&
+    !usuario.perfis.includes('GESTORA') &&
+    !usuario.perfis.includes('TRIADORA')
+  );
+}
 
+@ApiTags('agendamentos')
+@ApiBearerAuth()
 @Controller('agendamentos')
 @UseGuards(RolesGuard)
 @Roles('GESTORA', 'TRIADORA')
@@ -38,32 +48,25 @@ export class AgendamentosController {
   @Get('meus')
   @Roles('PROFISSIONAL')
   findMeus(
-    @Request() req: AuthenticatedRequest,
+    @CurrentUser() usuario: JwtUser,
     @Query('apenas_com_beneficiaria') apenasComBeneficiaria?: string,
   ) {
     return this.agendamentosService.findByProfissional(
-      req.user.id,
+      usuario.id,
       apenasComBeneficiaria === 'true',
     );
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', UUID_PIPE) id: string) {
     return this.agendamentosService.findOne(id);
   }
 
   @Post()
   @Roles('GESTORA', 'TRIADORA', 'PROFISSIONAL')
-  create(
-    @Body() dto: CreateAgendamentoDto,
-    @Request() req: AuthenticatedRequest,
-  ) {
-    const isProfissionalPuro =
-      req.user.perfis?.includes('PROFISSIONAL') &&
-      !req.user.perfis?.includes('GESTORA') &&
-      !req.user.perfis?.includes('TRIADORA');
-    const profissionalId = isProfissionalPuro
-      ? req.user.id
+  create(@Body() dto: CreateAgendamentoDto, @CurrentUser() usuario: JwtUser) {
+    const profissionalId = ehProfissionalPuro(usuario)
+      ? usuario.id
       : dto.profissional_id;
 
     if (!profissionalId) {
@@ -79,24 +82,20 @@ export class AgendamentosController {
   @Patch(':id')
   @Roles('GESTORA', 'TRIADORA', 'PROFISSIONAL')
   update(
-    @Param('id') id: string,
+    @Param('id', UUID_PIPE) id: string,
     @Body() dto: UpdateAgendamentoDto,
-    @Request() req: AuthenticatedRequest,
+    @CurrentUser() usuario: JwtUser,
   ) {
-    const isProfissional =
-      req.user.perfis?.includes('PROFISSIONAL') &&
-      !req.user.perfis?.includes('GESTORA') &&
-      !req.user.perfis?.includes('TRIADORA');
     return this.agendamentosService.update(
       id,
       dto,
-      isProfissional ? req.user.id : undefined,
+      ehProfissionalPuro(usuario) ? usuario.id : undefined,
     );
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
-    return this.agendamentosService.remove(id);
+  async remove(@Param('id', UUID_PIPE) id: string): Promise<void> {
+    await this.agendamentosService.remove(id);
   }
 }

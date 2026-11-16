@@ -1,9 +1,13 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
-import { QueixasService } from './queixas.service';
-import { CreateQueixaDto } from './dto/create-queixa.dto';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { UUID_PIPE } from '../common/pipes/uuid.pipe';
+import { CreateQueixaDto } from './dto/create-queixa.dto';
+import { QueixasService } from './queixas.service';
 
+@ApiTags('queixas')
+@ApiBearerAuth()
 @Controller('queixas')
 @UseGuards(RolesGuard)
 @Roles('GESTORA', 'TRIADORA')
@@ -20,13 +24,13 @@ export class QueixasController {
     return this.queixasService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.queixasService.findOne(id);
+  @Get('triagem/:triagem_id')
+  findByTriagem(@Param('triagem_id', UUID_PIPE) triagemId: string) {
+    return this.queixasService.findByTriagem(triagemId);
   }
 
-  @Get('triagem/:triagem_id')
-  findByTriagem(@Param('triagem_id') triagem_id: string) {
-    return this.queixasService.findByTriagem(triagem_id);
+  @Get(':id')
+  findOne(@Param('id', UUID_PIPE) id: string) {
+    return this.queixasService.findOne(id);
   }
 }

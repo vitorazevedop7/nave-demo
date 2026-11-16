@@ -4,15 +4,17 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma, VisibilidadeProntuario } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { WHERE_USUARIO_COMPARTILHAVEL } from '../usuarios/usuario-compartilhavel';
 import {
-  CreateProntuarioDto,
+  AcupunturaDto,
   AnamneseAdultoDto,
   AnamneseCriancaDto,
+  CreateProntuarioDto,
   FisioterapiaDto,
-  AcupunturaDto,
 } from './dto/create-prontuario.dto';
 import { UpdateProntuarioDto } from './dto/update-prontuario.dto';
 
@@ -52,6 +54,9 @@ const selectProntuarioResumo = {
     select: { nome: true },
   },
 } as const;
+
+/** Prontuários excluídos (soft delete) nunca aparecem em leitura alguma. */
+const NAO_EXCLUIDO = { deletado_em: null } as const;
 
 type UsuarioVisibilidade = {
   id: string;
@@ -123,15 +128,15 @@ export function redigirProntuario<T extends ProntuarioRedigivel>(
 
 @Injectable()
 export class ProntuariosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateProntuarioDto, usuarioId: string) {
-    const autor = await this.prisma.usuarios.findUnique({
-      where: { id: usuarioId },
+    const autor = await this.prisma.usuarios.findFirst({
+      where: { id: usuarioId, deletado_em: null, ativo: true },
       select: { especialidade: true },
     });
 
-    if (!autor) throw new NotFoundException('Usuário não encontrado');
+    if (!autor) throw new UnauthorizedException('Usuário inativo ou removido');
     if (!autor.especialidade?.trim()) {
       throw new BadRequestException(
         'Profissional sem especialidade cadastrada não pode criar prontuário',
@@ -145,7 +150,7 @@ export class ProntuariosService {
           select: { beneficiaria_id: true, profissional_id: true },
         }),
         this.prisma.prontuarios.findFirst({
-          where: { agendamento_id: dto.agendamento_id },
+          where: { agendamento_id: dto.agendamento_id, ...NAO_EXCLUIDO },
           select: { id: true },
         }),
       ]);
@@ -166,6 +171,10 @@ export class ProntuariosService {
       if (existente) {
         throw new ConflictException('Este agendamento já possui um prontuário');
       }
+    }
+
+    if (dto.compartilhamentos?.length) {
+      await this.validarCompartilhamentos(dto.compartilhamentos);
     }
 
     const prontuario = await this.prisma.prontuarios.create({
@@ -217,7 +226,7 @@ export class ProntuariosService {
   async findAll(usuarioId: string) {
     const usuario = await this.buscarUsuarioVisibilidade(usuarioId);
     const prontuarios = await this.prisma.prontuarios.findMany({
-      where: this.whereVisibilidade(usuario),
+      where: { AND: [NAO_EXCLUIDO, this.whereVisibilidade(usuario)] },
       select: selectProntuarioResumo,
       orderBy: { criado_em: 'desc' },
     });
@@ -231,7 +240,10 @@ export class ProntuariosService {
     const usuario = await this.buscarUsuarioVisibilidade(usuarioId);
     const prontuarios = await this.prisma.prontuarios.findMany({
       where: {
-        AND: [{ profissional_id }, this.whereVisibilidade(usuario)],
+        AND: [
+          { profissional_id, ...NAO_EXCLUIDO },
+          this.whereVisibilidade(usuario),
+        ],
       },
       select: selectProntuarioResumo,
       orderBy: { criado_em: 'desc' },
@@ -245,6 +257,7 @@ export class ProntuariosService {
   async findCompartilhadosComigo(usuarioId: string) {
     return this.prisma.prontuarios.findMany({
       where: {
+        ...NAO_EXCLUIDO,
         prontuario_compartilhamentos: {
           some: { usuario_id: usuarioId },
         },
@@ -264,7 +277,10 @@ export class ProntuariosService {
     const usuario = await this.buscarUsuarioVisibilidade(usuarioId);
     const prontuarios = await this.prisma.prontuarios.findMany({
       where: {
-        AND: [{ beneficiaria_id }, this.whereVisibilidade(usuario)],
+        AND: [
+          { beneficiaria_id, ...NAO_EXCLUIDO },
+          this.whereVisibilidade(usuario),
+        ],
       },
       include: includeProntuarioFields,
       orderBy: { criado_em: 'desc' },
@@ -293,7 +309,7 @@ export class ProntuariosService {
     }
 
     const prontuario = await this.prisma.prontuarios.findFirst({
-      where: { agendamento_id },
+      where: { agendamento_id, ...NAO_EXCLUIDO },
       include: includeProntuarioFields,
     });
 
@@ -311,7 +327,7 @@ export class ProntuariosService {
     const usuario = await this.buscarUsuarioVisibilidade(usuarioId);
     const prontuario = await this.prisma.prontuarios.findFirst({
       where: {
-        AND: [{ id }, this.whereVisibilidade(usuario)],
+        AND: [{ id, ...NAO_EXCLUIDO }, this.whereVisibilidade(usuario)],
       },
       include: includeProntuarioFields,
     });
@@ -322,10 +338,14 @@ export class ProntuariosService {
   async update(id: string, dto: UpdateProntuarioDto, usuarioId: string) {
     await this.verificarAutoria(id, usuarioId);
 
+    if (dto.compartilhamentos?.length) {
+      await this.validarCompartilhamentos(dto.compartilhamentos);
+    }
+
     const prontuario = await this.prisma.prontuarios.update({
       where: { id },
       data: {
-        ...(dto.beneficiaria_id && { beneficiaria_id: dto.beneficiaria_id }),
+        atualizado_em: new Date(),
         ...(dto.descricao !== undefined && { descricao: dto.descricao }),
         ...(dto.visibilidade !== undefined && {
           visibilidade: dto.visibilidade,
@@ -381,16 +401,25 @@ export class ProntuariosService {
     });
   }
 
-  async remove(id: string, usuarioId: string) {
+  /**
+   * Exclusão lógica: o registro some de todas as leituras, mas permanece no
+   * banco. O vínculo com o agendamento é liberado (`agendamento_id` é único)
+   * para que o profissional possa registrar um novo prontuário naquele
+   * atendimento; beneficiária e autoria continuam gravadas.
+   */
+  async remove(id: string, usuarioId: string): Promise<void> {
     await this.verificarAutoria(id, usuarioId);
-    return this.prisma.prontuarios.delete({ where: { id } });
+    await this.prisma.prontuarios.update({
+      where: { id },
+      data: { deletado_em: new Date(), agendamento_id: null },
+    });
   }
 
   private async buscarUsuarioVisibilidade(
     usuarioId: string,
   ): Promise<UsuarioVisibilidade> {
-    const usuario = await this.prisma.usuarios.findUnique({
-      where: { id: usuarioId },
+    const usuario = await this.prisma.usuarios.findFirst({
+      where: { id: usuarioId, deletado_em: null, ativo: true },
       select: {
         id: true,
         especialidade: true,
@@ -398,7 +427,9 @@ export class ProntuariosService {
       },
     });
 
-    if (!usuario) throw new NotFoundException('Usuário não encontrado');
+    if (!usuario) {
+      throw new UnauthorizedException('Usuário inativo ou removido');
+    }
 
     return {
       id: usuario.id,
@@ -438,8 +469,8 @@ export class ProntuariosService {
   }
 
   private async verificarAutoria(id: string, usuarioId: string) {
-    const prontuario = await this.prisma.prontuarios.findUnique({
-      where: { id },
+    const prontuario = await this.prisma.prontuarios.findFirst({
+      where: { id, ...NAO_EXCLUIDO },
       select: { profissional_id: true },
     });
 
@@ -448,6 +479,22 @@ export class ProntuariosService {
     if (prontuario.profissional_id !== usuarioId) {
       throw new ForbiddenException(
         'Apenas o autor pode alterar ou excluir o prontuário',
+      );
+    }
+  }
+
+  /**
+   * Só aceita destinatários que o seletor do frontend também ofereceria:
+   * ativos, não removidos e com perfil clínico (GESTORA ou PROFISSIONAL).
+   */
+  private async validarCompartilhamentos(usuarioIds: string[]) {
+    const validos = await this.prisma.usuarios.count({
+      where: { id: { in: usuarioIds }, ...WHERE_USUARIO_COMPARTILHAVEL },
+    });
+
+    if (validos !== new Set(usuarioIds).size) {
+      throw new BadRequestException(
+        'Compartilhamento inválido: todos os destinatários precisam ser usuários ativos com perfil GESTORA ou PROFISSIONAL.',
       );
     }
   }

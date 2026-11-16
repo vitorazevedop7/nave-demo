@@ -142,22 +142,13 @@ export class AcupunturaDto {
   @IsOptional() @IsString() data_assinatura?: string;
 }
 
-export class PsicologiaDto {
-  @IsOptional() @IsString() data_atendimento?: string;
-  @IsOptional() @IsString() nome?: string;
-  @IsOptional() @IsString() profissional?: string;
-  @IsOptional() @IsString() queixa_principal?: string;
-  @IsOptional() @IsString() observacoes_clinicas?: string;
-  @IsOptional() @IsString() data_assinatura?: string;
-}
-
+/**
+ * O autor (`profissional_id`) e a especialidade do prontuário nunca vêm do
+ * cliente: são sempre os do usuário autenticado.
+ */
 export class CreateProntuarioDto {
-  @IsString() beneficiaria_id: string;
-  @IsString() profissional_id: string;
-  @IsOptional() @IsString() agendamento_id?: string;
-  // Campo legado: aceito para compatibilidade, mas ignorado pelo serviço.
-  // A especialidade persistida é sempre derivada do usuário autenticado.
-  @IsOptional() @IsString() especialidade?: string;
+  @IsUUID() beneficiaria_id: string;
+  @IsOptional() @IsUUID() agendamento_id?: string;
   @IsOptional() @IsString() descricao?: string;
   @IsOptional()
   @IsEnum(VisibilidadeProntuario)
@@ -166,7 +157,7 @@ export class CreateProntuarioDto {
   @IsOptional()
   @IsArray()
   @ArrayUnique()
-  @IsUUID('4', { each: true })
+  @IsUUID('all', { each: true })
   compartilhamentos?: string[];
 
   @IsOptional()
@@ -188,9 +179,4 @@ export class CreateProntuarioDto {
   @ValidateNested()
   @Type(() => AcupunturaDto)
   acupuntura?: AcupunturaDto;
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => PsicologiaDto)
-  psicologia?: PsicologiaDto;
 }

@@ -1,17 +1,26 @@
-import { IsString, IsOptional, IsNotEmpty, IsNumber, IsEnum } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
+
+export const TIPOS_DOACAO = ['DINHEIRO', 'ALIMENTO', 'ROUPA', 'OUTRO'] as const;
+export type TipoDoacao = (typeof TIPOS_DOACAO)[number];
 
 export class CreateDoacaoDto {
   @IsOptional()
-  @IsString()
+  @IsUUID()
   doador_id?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   campanha_id?: string;
 
-  @IsNotEmpty()
-  @IsEnum(['DINHEIRO', 'ALIMENTO', 'ROUPA', 'OUTRO'])
-  tipo!: 'DINHEIRO' | 'ALIMENTO' | 'ROUPA' | 'OUTRO';
+  @IsIn(TIPOS_DOACAO)
+  tipo!: TipoDoacao;
 
   @IsOptional()
   @IsNumber()
@@ -21,9 +30,9 @@ export class CreateDoacaoDto {
   @IsString()
   quantidade?: string;
 
-  @IsNotEmpty()
-  @IsString()
-  data!: string; // ISO date string
+  /** Data da doação (ISO 8601, ex.: `2026-11-16`). */
+  @IsDateString()
+  data!: string;
 
   @IsOptional()
   @IsString()

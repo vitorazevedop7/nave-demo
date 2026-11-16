@@ -4,6 +4,7 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAgendamentoDto } from './dto/create-agendamento.dto';
 import { UpdateAgendamentoDto } from './dto/update-agendamento.dto';
@@ -36,7 +37,7 @@ export class AgendamentosService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: ListAgendamentoQueryDto) {
-    const where: Record<string, unknown> = {};
+    const where: Prisma.agendamentosWhereInput = {};
 
     if (query.data_inicio || query.data_fim) {
       where.data_hora = {
@@ -143,7 +144,7 @@ export class AgendamentosService {
       );
     }
 
-    const data: Record<string, unknown> = {};
+    const data: Prisma.agendamentosUncheckedUpdateInput = {};
     if (dto.beneficiaria_id !== undefined)
       data.beneficiaria_id = dto.beneficiaria_id;
     if (dto.profissional_id !== undefined)

@@ -1,12 +1,15 @@
 import {
-  IsString,
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
-  IsArray,
+  IsString,
   MinLength,
-  ArrayNotEmpty,
 } from 'class-validator';
+import { PERFIS, type Perfil } from '../../auth/perfis';
 
 export class CreateUsuarioDto {
   @IsString()
@@ -27,6 +30,10 @@ export class CreateUsuarioDto {
 
   @IsArray()
   @ArrayNotEmpty()
-  @IsString({ each: true })
-  perfis: string[];
+  @ArrayUnique()
+  @IsIn(PERFIS, {
+    each: true,
+    message: `perfis devem ser: ${PERFIS.join(', ')}`,
+  })
+  perfis: Perfil[];
 }

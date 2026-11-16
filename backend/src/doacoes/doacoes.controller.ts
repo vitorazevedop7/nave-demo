@@ -1,37 +1,58 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Request, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
-import { RolesGuard } from '../auth/roles.guard';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { JwtUser } from '../auth/jwt-user.interface';
 import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { UUID_PIPE } from '../common/pipes/uuid.pipe';
 import { DoacoesService } from './doacoes.service';
 import { CreateDoacaoDto } from './dto/create-doacao.dto';
 import { UpdateDoacaoDto } from './dto/update-doacao.dto';
 
+// Doações carregam contato de doadores (telefone, e-mail): só a gestão acessa,
+// a mesma restrição que o frontend aplica ao menu "Doações".
+@ApiTags('doacoes')
+@ApiBearerAuth()
 @Controller('doacoes')
 @UseGuards(RolesGuard)
+@Roles('GESTORA')
 export class DoacoesController {
   constructor(private readonly doacoesService: DoacoesService) {}
 
   @Get()
-  @Roles('GESTORA', 'TRIADORA', 'PROFISSIONAL')
-  findAll() { return this.doacoesService.findAll(); }
+  findAll() {
+    return this.doacoesService.findAll();
+  }
 
   @Get(':id')
-  @Roles('GESTORA', 'TRIADORA', 'PROFISSIONAL')
-  findOne(@Param('id') id: string) { return this.doacoesService.findOne(id); }
+  findOne(@Param('id', UUID_PIPE) id: string) {
+    return this.doacoesService.findOne(id);
+  }
 
   @Post()
-  @Roles('GESTORA', 'TRIADORA')
-  create(@Body() dto: CreateDoacaoDto, @Request() req: any) {
-    return this.doacoesService.create(dto, req.user.id);
+  create(@Body() dto: CreateDoacaoDto, @CurrentUser() usuario: JwtUser) {
+    return this.doacoesService.create(dto, usuario.id);
   }
 
   @Patch(':id')
-  @Roles('GESTORA', 'TRIADORA')
-  update(@Param('id') id: string, @Body() dto: UpdateDoacaoDto) {
+  update(@Param('id', UUID_PIPE) id: string, @Body() dto: UpdateDoacaoDto) {
     return this.doacoesService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('GESTORA')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) { return this.doacoesService.remove(id); }
+  async remove(@Param('id', UUID_PIPE) id: string): Promise<void> {
+    await this.doacoesService.remove(id);
+  }
 }

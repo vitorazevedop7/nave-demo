@@ -7,17 +7,12 @@
  */
 import 'dotenv/config';
 import * as bcrypt from 'bcrypt';
-import {
-  Prisma,
-  PrismaClient,
-  VisibilidadeProntuario,
-} from '@prisma/client';
+import { Prisma, PrismaClient, VisibilidadeProntuario } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { limparBase } from './prisma/limpar-base';
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-const prisma = new PrismaClient({ adapter } as ConstructorParameters<
-  typeof PrismaClient
->[0]);
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 // Credencial pública e intencional do ambiente de demonstração.
 // Nunca reutilize esta senha fora de uma instalação local da demo.
@@ -32,28 +27,6 @@ const dataRelativa = (dias: number, hora = 10, minuto = 0) => {
 };
 const mesRelativo = (meses: number) =>
   new Date(agora.getFullYear(), agora.getMonth() + meses, 10, 12);
-
-async function limparBase(db: Prisma.TransactionClient) {
-  await db.prontuario_compartilhamentos.deleteMany({});
-  await db.prontuarios_acupuntura.deleteMany({});
-  await db.prontuarios_fisioterapia.deleteMany({});
-  await db.prontuarios_psicologia_adulto.deleteMany({});
-  await db.prontuarios_psicologia_crianca.deleteMany({});
-  await db.prontuarios.deleteMany({});
-  await db.agendamentos.deleteMany({});
-  await db.queixas.deleteMany({});
-  await db.encaminhamentos.deleteMany({});
-  await db.triagens.deleteMany({});
-  await db.doacoes.deleteMany({});
-  await db.campanhas_doacoes.deleteMany({});
-  await db.bazar_profissionais.deleteMany({});
-  await db.bazares.deleteMany({});
-  await db.doadores.deleteMany({});
-  await db.perfis_usuario.deleteMany({});
-  await db.beneficiarias.updateMany({ data: { responsavel_id: null } });
-  await db.beneficiarias.deleteMany({});
-  await db.usuarios.deleteMany({});
-}
 
 async function seedDemo(db: Prisma.TransactionClient) {
   console.log('🌱 Iniciando seed fictício de demonstração...');

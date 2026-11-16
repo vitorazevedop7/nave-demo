@@ -1,22 +1,23 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
-import { Request } from 'express';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { JwtUser } from '../auth/jwt-user.interface';
 import { DashboardService } from './dashboard.service';
-import { RolesGuard } from '../auth/roles.guard';
+import { DashboardQueryDto } from './dto/dashboard-query.dto';
 
-interface AuthedRequest extends Request {
-  user: { id: string; email: string; nome: string; perfis: string[] };
-}
-
+// Sem @Roles: todo usuário autenticado tem um dashboard, e o conteúdo é
+// escolhido pelo perfil dentro do serviço.
+@ApiTags('dashboard')
+@ApiBearerAuth()
 @Controller('dashboard')
-@UseGuards(RolesGuard)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('stats')
   getStats(
-    @Req() req: AuthedRequest,
-    @Query('period') period: 'hoje' | 'semana' | 'mes' = 'semana',
+    @CurrentUser() usuario: JwtUser,
+    @Query() { period = 'semana' }: DashboardQueryDto,
   ) {
-    return this.dashboardService.getStats(req.user.id, req.user.perfis, period);
+    return this.dashboardService.getStats(usuario.id, usuario.perfis, period);
   }
 }

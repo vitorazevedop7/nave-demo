@@ -4,7 +4,9 @@ import { CreateDoacaoDto } from './dto/create-doacao.dto';
 import { UpdateDoacaoDto } from './dto/update-doacao.dto';
 
 const DOACAO_INCLUDE = {
-  doadores: { select: { id: true, nome: true, tipo: true, telefone: true, email: true } },
+  doadores: {
+    select: { id: true, nome: true, tipo: true, telefone: true, email: true },
+  },
   campanhas_doacoes: { select: { id: true, nome: true } },
   usuarios: { select: { id: true, nome: true } },
 } as const;
@@ -21,7 +23,10 @@ export class DoacoesService {
   }
 
   async findOne(id: string) {
-    const doacao = await this.prisma.doacoes.findUnique({ where: { id }, include: DOACAO_INCLUDE });
+    const doacao = await this.prisma.doacoes.findUnique({
+      where: { id },
+      include: DOACAO_INCLUDE,
+    });
     if (!doacao) throw new NotFoundException(`Doação ${id} não encontrada`);
     return doacao;
   }

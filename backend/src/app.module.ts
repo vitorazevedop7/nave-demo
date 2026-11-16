@@ -16,8 +16,7 @@ import { DoadoresModule } from './doadores/doadores.module';
 import { CampanhasDoacoesModule } from './campanhas-doacoes/campanhas-doacoes.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -36,13 +35,12 @@ import { AppService } from './app.service';
     DoadoresModule,
     CampanhasDoacoesModule,
     DashboardModule,
+    HealthModule,
   ],
-  controllers: [AppController],
   providers: [
     // Autenticação obrigatória por padrão em toda a aplicação. Rotas que devem
     // ser acessíveis sem token precisam do decorator `@Public()`.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-    AppService,
   ],
 })
 export class AppModule {}

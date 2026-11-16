@@ -1,9 +1,9 @@
 import {
   Injectable,
   NotFoundException,
-  ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBazarDto } from './dto/create-bazar.dto';
 import { UpdateBazarDto } from './dto/update-bazar.dto';
@@ -27,10 +27,10 @@ const BAZAR_INCLUDE = {
 
 @Injectable()
 export class BazaresService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: ListBazarQueryDto) {
-    const where: Record<string, unknown> = {};
+    const where: Prisma.bazaresWhereInput = {};
 
     if (query.data_inicio || query.data_fim) {
       where.data = {
@@ -126,7 +126,7 @@ export class BazaresService {
   }
 
   async update(id: string, dto: UpdateBazarDto) {
-    const atual = await this.findOne(id);
+    await this.findOne(id);
 
     // Validar profissionais se houver
     if (dto.profissional_ids && dto.profissional_ids.length > 0) {
@@ -134,7 +134,7 @@ export class BazaresService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const data: Record<string, unknown> = {};
+      const data: Prisma.bazaresUncheckedUpdateInput = {};
 
       if (dto.nome !== undefined) data.nome = dto.nome;
       if (dto.data !== undefined) data.data = new Date(dto.data);
@@ -189,8 +189,10 @@ export class BazaresService {
           });
 
           // Criar novos agendamentos
+          // `bazar.data` é coluna DATE (meia-noite UTC): o dia em UTC é o correto.
+          const dia = (dto.data ?? bazar.data.toISOString()).slice(0, 10);
           const horaInicio = dto.horario_inicio
-            ? new Date(`${dto.data || bazar.data}T${dto.horario_inicio}`)
+            ? new Date(`${dia}T${dto.horario_inicio}`)
             : new Date(bazar.data).setHours(9, 0, 0);
 
           for (const profissionalId of dto.profissional_ids) {
@@ -214,7 +216,6 @@ export class BazaresService {
   }
 
   async remove(id: string) {
-
     const bazar = await this.findOne(id);
 
     return this.prisma.$transaction(async (tx) => {
@@ -239,7 +240,9 @@ export class BazaresService {
 
   private async validarProfissionais(profissional_ids: string[]) {
     if (!profissional_ids || profissional_ids.length === 0) {
-      throw new BadRequestException('Pelo menos um profissional deve ser selecionado');
+      throw new BadRequestException(
+        'Pelo menos um profissional deve ser selecionado',
+      );
     }
 
     for (const id of profissional_ids) {

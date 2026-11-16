@@ -1,17 +1,21 @@
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { configureApp, setupSwagger } from './configure-app';
+
+const PORTA_PADRAO = 3001;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors({ origin: process.env.FRONTEND_URL || 'http://localhost:3001' });
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
-  console.log(`Application is running on port: ${port}`);
+  configureApp(app);
+  setupSwagger(app);
+
+  const porta = Number(process.env.PORT) || PORTA_PADRAO;
+  await app.listen(porta);
+  Logger.log(
+    `API ouvindo na porta ${porta} — documentação em /docs`,
+    'Bootstrap',
+  );
 }
-bootstrap();
+
+void bootstrap();

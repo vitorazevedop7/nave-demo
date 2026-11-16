@@ -1,15 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsDateString, IsOptional, IsUUID } from 'class-validator';
 
+/** A triadora responsável é sempre o usuário autenticado, nunca o corpo. */
 export class CreateTriagemDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   beneficiaria_id: string;
 
-  @IsString()
-  @IsNotEmpty()
-  triador_id: string;
-
   @IsOptional()
-  @IsString()
+  @IsDateString()
   data_triagem?: string;
 }

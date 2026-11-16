@@ -1,4 +1,3 @@
-// ── campanhas.service.ts ───────────────────────────────────────
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCampanhaDto } from './dto/create-campanha.dto';
@@ -23,7 +22,11 @@ export class CampanhasDoacoesService {
 
   create(dto: CreateCampanhaDto) {
     return this.prisma.campanhas_doacoes.create({
-      data: { nome: dto.nome, descricao: dto.descricao ?? null, meta_valor: dto.meta_valor ?? null },
+      data: {
+        nome: dto.nome,
+        descricao: dto.descricao ?? null,
+        meta_valor: dto.meta_valor ?? null,
+      },
     });
   }
 

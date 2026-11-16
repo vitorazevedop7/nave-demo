@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateBeneficiarioDto } from './dto/create-beneficiaria.dto';
-import { UpdateBeneficiarioDto } from './dto/update-beneficiaria.dto';
+import { CreateBeneficiariaDto } from './dto/create-beneficiaria.dto';
+import { UpdateBeneficiariaDto } from './dto/update-beneficiaria.dto';
+
+/** Perfis que administram cadastros e, por isso, podem ver o CPF na busca. */
+const PERFIS_COM_ACESSO_AO_CPF = new Set(['GESTORA', 'TRIADORA']);
 
 @Injectable()
 export class BeneficiariasService {
   constructor(private prisma: PrismaService) {}
 
-  create(dto: CreateBeneficiarioDto) {
+  create(dto: CreateBeneficiariaDto) {
     return this.prisma.beneficiarias.create({
       data: {
         nome: dto.nome,
@@ -49,14 +53,18 @@ export class BeneficiariasService {
     });
   }
 
-  buscar(busca?: string) {
+  buscar(busca: string | undefined, perfis: string[]) {
+    const incluirCpf = perfis.some((perfil) =>
+      PERFIS_COM_ACESSO_AO_CPF.has(perfil),
+    );
+
     return this.prisma.beneficiarias.findMany({
       where: {
         deletado_em: null,
         ...(busca ? { nome: { contains: busca, mode: 'insensitive' } } : {}),
       },
       orderBy: { nome: 'asc' },
-      select: { id: true, nome: true, cpf: true },
+      select: { id: true, nome: true, cpf: incluirCpf },
     });
   }
 
@@ -69,26 +77,17 @@ export class BeneficiariasService {
     const beneficiaria = await this.prisma.beneficiarias.findFirst({
       where: { id, ...(incluirArquivadas ? {} : { deletado_em: null }) },
     });
-    if (!beneficiaria) throw new NotFoundException('Beneficiária não encontrada');
+    if (!beneficiaria)
+      throw new NotFoundException('Beneficiária não encontrada');
     return beneficiaria;
   }
 
-  update(id: string, dto: UpdateBeneficiarioDto) {
-    const data: any = {};
-
-    if (dto.nome !== undefined) data.nome = dto.nome;
-    if (dto.cpf !== undefined) data.cpf = dto.cpf;
-    if (dto.telefone !== undefined) data.telefone = dto.telefone;
-    if (dto.endereco !== undefined) data.endereco = dto.endereco;
-    if (dto.tipo !== undefined) data.tipo = dto.tipo;
-    if (dto.responsavel_id !== undefined) data.responsavel_id = dto.responsavel_id;
-    if (dto.status !== undefined) data.status = dto.status;
-    if (dto.estado_civil !== undefined) data.estado_civil = dto.estado_civil;
-    if (dto.escolaridade !== undefined) data.escolaridade = dto.escolaridade;
-    if (dto.raca !== undefined) data.raca = dto.raca;
-    if (dto.ocupacao !== undefined) data.ocupacao = dto.ocupacao;
-    if (dto.empregada !== undefined) data.empregada = dto.empregada;
-    if (dto.data_nascimento) data.data_nascimento = new Date(dto.data_nascimento);
+  /** Id inexistente vira 404 pelo filtro global de erros do Prisma (P2025). */
+  update(id: string, dto: UpdateBeneficiariaDto) {
+    const { data_nascimento, responsavel_id, ...campos } = dto;
+    const data: Prisma.beneficiariasUncheckedUpdateInput = { ...campos };
+    if (responsavel_id !== undefined) data.responsavel_id = responsavel_id;
+    if (data_nascimento) data.data_nascimento = new Date(data_nascimento);
 
     return this.prisma.beneficiarias.update({ where: { id }, data });
   }
@@ -103,7 +102,8 @@ export class BeneficiariasService {
       where: { id },
       select: { id: true, deletado_em: true },
     });
-    if (!beneficiaria) throw new NotFoundException('Beneficiária não encontrada');
+    if (!beneficiaria)
+      throw new NotFoundException('Beneficiária não encontrada');
     if (beneficiaria.deletado_em) return beneficiaria;
 
     return this.prisma.beneficiarias.update({
