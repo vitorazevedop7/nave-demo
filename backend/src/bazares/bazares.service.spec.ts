@@ -1,121 +1,166 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  criarPrismaMock,
+  executarTransacoesNoMock,
+  type PrismaMock,
+} from '../test-utils/prisma-mock';
 import { BazaresService } from './bazares.service';
-import { PrismaService } from '../prisma/prisma.service';
+
+const PROFISSIONAL_ID = '6f1b0f0e-2b8a-4c55-9d3f-7a2e9d1c4b10';
 
 describe('BazaresService', () => {
   let service: BazaresService;
-  let mockPrisma: any;
+  let prisma: PrismaMock;
 
-  beforeEach(async () => {
-    mockPrisma = {
-      bazares: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-      },
-      bazar_profissionais: {
-        createMany: jest.fn(),
-        deleteMany: jest.fn(),
-      },
-      agendamentos: {
-        create: jest.fn(),
-        deleteMany: jest.fn(),
-      },
-      usuarios: {
-        findFirst: jest.fn(),
-      },
-      $transaction: jest.fn((fn: any) => fn(mockPrisma)),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        BazaresService,
-        {
-          provide: PrismaService,
-          useValue: mockPrisma,
-        },
-      ],
-    }).compile();
-
-    service = module.get<BazaresService>(BazaresService);
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
+  beforeEach(() => {
+    prisma = criarPrismaMock();
+    executarTransacoesNoMock(prisma);
+    service = new BazaresService(prisma);
   });
 
   describe('findAll', () => {
-    it('deve retornar lista de bazares', async () => {
-      const mockData = [{ id: '1', nome: 'Bazar 1' }];
-      mockPrisma.bazares.findMany.mockResolvedValue(mockData);
+    it('retorna a lista de bazares', async () => {
+      const bazares = [{ id: '1', nome: 'Bazar 1' }];
+      prisma.bazares.findMany.mockResolvedValue(bazares as never);
 
-      const result = await service.findAll({});
+      await expect(service.findAll({})).resolves.toEqual(bazares);
+    });
 
-      expect(result).toEqual(mockData);
+    it('aplica filtros de período, local e nome', async () => {
+      prisma.bazares.findMany.mockResolvedValue([]);
+
+      await service.findAll({
+        data_inicio: '2026-05-01',
+        data_fim: '2026-05-31',
+        local: 'centro',
+        nome: 'inverno',
+      });
+
+      expect(prisma.bazares.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            data: {
+              gte: new Date('2026-05-01'),
+              lte: new Date('2026-05-31'),
+            },
+            local: { contains: 'centro', mode: 'insensitive' },
+            nome: { contains: 'inverno', mode: 'insensitive' },
+          },
+        }),
+      );
     });
   });
 
   describe('findOne', () => {
-    it('deve retornar um bazar por ID', async () => {
-      const mockData = { id: '1', nome: 'Bazar 1' };
-      mockPrisma.bazares.findUnique.mockResolvedValue(mockData);
+    it('retorna um bazar por ID', async () => {
+      const bazar = { id: '1', nome: 'Bazar 1' };
+      prisma.bazares.findUnique.mockResolvedValue(bazar as never);
 
-      const result = await service.findOne('1');
-
-      expect(result).toEqual(mockData);
+      await expect(service.findOne('1')).resolves.toEqual(bazar);
     });
 
-    it('deve lançar erro se bazar não encontrado', async () => {
-      mockPrisma.bazares.findUnique.mockResolvedValue(null);
+    it('lança NotFoundException se o bazar não existe', async () => {
+      prisma.bazares.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('999')).rejects.toThrow();
+      await expect(service.findOne('999')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
   describe('create', () => {
-    it('deve criar novo bazar', async () => {
-      const dto = {
-        nome: 'Novo Bazar',
-        data: '2024-05-15',
-        profissional_ids: ['prof1'],
-      };
-      const mockData = { id: '1', ...dto };
+    const dto = {
+      nome: 'Novo Bazar',
+      data: '2026-05-15',
+      horario_inicio: '10:00',
+      profissional_ids: [PROFISSIONAL_ID],
+    };
 
-      mockPrisma.usuarios.findFirst.mockResolvedValue({ id: 'prof1' });
-      mockPrisma.bazares.create.mockResolvedValue(mockData);
-      mockPrisma.bazares.findUnique.mockResolvedValue(mockData);
+    it('cria o bazar e um compromisso na agenda de cada profissional', async () => {
+      prisma.usuarios.findFirst.mockResolvedValue({
+        id: PROFISSIONAL_ID,
+      } as never);
+      prisma.bazares.create.mockResolvedValue({
+        id: 'bazar-1',
+        nome: dto.nome,
+        local: null,
+      } as never);
+      prisma.bazares.findUnique.mockResolvedValue({ id: 'bazar-1' } as never);
 
-      const result = await service.create(dto as any, 'gestora-id');
+      await expect(service.create(dto, 'gestora-id')).resolves.toEqual({
+        id: 'bazar-1',
+      });
 
-      expect(result).toBeDefined();
+      expect(prisma.bazar_profissionais.createMany).toHaveBeenCalledWith({
+        data: [{ bazar_id: 'bazar-1', profissional_id: PROFISSIONAL_ID }],
+        skipDuplicates: true,
+      });
+      expect(prisma.agendamentos.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          profissional_id: PROFISSIONAL_ID,
+          data_hora: new Date('2026-05-15T10:00'),
+          status: 'AGENDADO',
+        }) as unknown,
+      });
+    });
+
+    it('exige ao menos um profissional', async () => {
+      await expect(
+        service.create({ ...dto, profissional_ids: [] }, 'gestora-id'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.bazares.create).not.toHaveBeenCalled();
+    });
+
+    it('rejeita profissional inexistente ou removido', async () => {
+      prisma.usuarios.findFirst.mockResolvedValue(null);
+
+      await expect(service.create(dto, 'gestora-id')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(prisma.bazares.create).not.toHaveBeenCalled();
     });
   });
 
   describe('update', () => {
-    it('deve atualizar bazar', async () => {
-      const mockData = { id: '1', nome: 'Atualizado' };
-
-      mockPrisma.bazares.findUnique.mockResolvedValue(mockData);
-      mockPrisma.bazares.update.mockResolvedValue(mockData);
+    it('atualiza os campos informados', async () => {
+      prisma.bazares.findUnique.mockResolvedValue({ id: '1' } as never);
+      prisma.bazares.update.mockResolvedValue({ id: '1' } as never);
 
       await service.update('1', { nome: 'Atualizado' });
 
-      expect(mockPrisma.bazares.update).toHaveBeenCalled();
+      expect(prisma.bazares.update).toHaveBeenCalledWith({
+        where: { id: '1' },
+        data: { nome: 'Atualizado' },
+      });
+    });
+
+    it('aceita total arrecadado e o grava como número', async () => {
+      prisma.bazares.findUnique.mockResolvedValue({ id: '1' } as never);
+      prisma.bazares.update.mockResolvedValue({ id: '1' } as never);
+
+      await service.update('1', { total_arrecadado: 915.5 });
+
+      expect(prisma.bazares.update).toHaveBeenCalledWith({
+        where: { id: '1' },
+        data: { total_arrecadado: 915.5 },
+      });
     });
   });
 
   describe('remove', () => {
-    it('deve deletar bazar', async () => {
-      const mockData = { id: '1' };
-
-      mockPrisma.bazares.findUnique.mockResolvedValue(mockData);
-      mockPrisma.bazares.delete.mockResolvedValue(mockData);
+    it('exclui o bazar dentro de uma transação', async () => {
+      prisma.bazares.findUnique.mockResolvedValue({
+        id: '1',
+        nome: 'Bazar',
+        data: new Date('2026-05-15'),
+      } as never);
 
       await service.remove('1');
 
-      expect(mockPrisma.bazares.delete).toHaveBeenCalled();
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.bazares.delete).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
     });
   });
 });
