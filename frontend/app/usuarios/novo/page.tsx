@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchAuth } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro } from "@/lib/api";
 import Button from "@/components/Button";
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
@@ -192,8 +192,7 @@ export default function NovoProfissional() {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? `Erro ${res.status}`);
+        throw new Error(await extrairMensagemErro(res, "Erro ao cadastrar profissional."));
       }
 
       router.push("/profissionais");

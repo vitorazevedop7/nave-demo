@@ -10,12 +10,29 @@ import {
   excluirAgendamento,
 } from '@/lib/agendamentos';
 import { getUsuario } from '@/lib/auth';
+import { mensagemDeErro } from '@/lib/api';
+import { nomeEspecialidade } from '@/lib/visibilidade';
 import { StatusBadge } from '../components/StatusBadge';
 import AgendamentoFormModal from './components/AgendamentoFormModal';
 import { useDialog } from '@/components/DialogProvider';
 import Button from '@/components/Button';
 
 type View = 'month' | 'week' | 'day';
+
+/** Torna um elemento não-button acionável por teclado (Enter/Espaço). */
+function comoBotao(onAtivar: () => void) {
+  return {
+    role: 'button' as const,
+    tabIndex: 0,
+    onClick: onAtivar,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onAtivar();
+      }
+    },
+  };
+}
 
 const HORAS = Array.from({ length: 19 }, (_, i) => i + 5); // 05 – 23
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -126,13 +143,17 @@ export default function AgendaPage() {
   const [cursor, setCursor] = useState(new Date(hoje));
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [carregando, setCarregando] = useState(false);
+  const [erroCarga, setErroCarga] = useState<string | null>(null);
 
   const [modalForm, setModalForm] = useState<{ aberto: boolean; agendamento?: Agendamento }>({ aberto: false });
   const [modalDia, setModalDia] = useState<{ data: Date; lista: Agendamento[] } | null>(null);
   const [agDetalhes, setAgDetalhes] = useState<Agendamento | null>(null);
 
   const fetchAgendamentos = useCallback(async () => {
+    // Aguarda o usuário para saber se deve buscar só a agenda própria (evita 403 para profissionais).
+    if (!usuario) return;
     setCarregando(true);
+    setErroCarga(null);
     try {
       let lista: Agendamento[];
       if (isProfissional) {
@@ -145,14 +166,24 @@ export default function AgendaPage() {
         });
       }
       setAgendamentos(lista);
-    } catch {
-      /* silencioso */
+    } catch (err: unknown) {
+      setErroCarga(mensagemDeErro(err, 'Não foi possível carregar os agendamentos.'));
     } finally {
       setCarregando(false);
     }
-  }, [isProfissional, view, cursor]);
+  }, [usuario, isProfissional, view, cursor]);
 
   useEffect(() => { fetchAgendamentos(); }, [fetchAgendamentos]);
+
+  const algumModalAberto = !!modalDia || !!agDetalhes;
+  useEffect(() => {
+    if (!algumModalAberto) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setModalDia(null); setAgDetalhes(null); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [algumModalAberto]);
 
   const porDia = useMemo(() => agruparPorDia(agendamentos), [agendamentos]);
 
@@ -165,7 +196,12 @@ export default function AgendaPage() {
       variant: 'danger',
     });
     if (!ok) return;
-    await editarAgendamento(ag.id, { status: 'CANCELADO' });
+    try {
+      await editarAgendamento(ag.id, { status: 'CANCELADO' });
+    } catch (err: unknown) {
+      await alert({ message: mensagemDeErro(err, 'Não foi possível cancelar o agendamento.'), tone: 'error' });
+      return;
+    }
     fetchAgendamentos();
     setAgDetalhes(null);
     if (modalDia) {
@@ -186,8 +222,8 @@ export default function AgendaPage() {
     if (!ok) return;
     try {
       await excluirAgendamento(ag.id);
-    } catch {
-      await alert({ message: 'Não foi possível excluir o agendamento.', tone: 'error' });
+    } catch (err: unknown) {
+      await alert({ message: mensagemDeErro(err, 'Não foi possível excluir o agendamento.'), tone: 'error' });
       return;
     }
     fetchAgendamentos();
@@ -228,7 +264,12 @@ export default function AgendaPage() {
             return (
               <div
                 key={dia.toISOString()}
-                onClick={() => { if (lista.length > 0) setModalDia({ data: dia, lista }); }}
+                {...(lista.length > 0
+                  ? {
+                      ...comoBotao(() => setModalDia({ data: dia, lista })),
+                      'aria-label': `${dia.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}: ${lista.length} agendamento(s)`,
+                    }
+                  : {})}
                 style={{
                   minHeight: '90px', padding: '6px', borderRadius: '10px',
                   background: isHoje ? 'rgba(46, 92, 53, 0.08)' : 'rgba(255,255,255,0.6)',
@@ -325,7 +366,7 @@ export default function AgendaPage() {
                       return (
                         <div
                           key={ag.id}
-                          onClick={() => setAgDetalhes(ag)}
+                          {...comoBotao(() => setAgDetalhes(ag))}
                           style={{
                             background: cor.bg, color: cor.text,
                             borderRadius: '5px', padding: '2px 6px',
@@ -366,7 +407,7 @@ export default function AgendaPage() {
         {ag.usuarios?.especialidade && (
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: '#475569' }}>
             <Stethoscope size={14} />
-            {ag.usuarios.especialidade}
+            {nomeEspecialidade(ag.usuarios.especialidade)}
           </div>
         )}
         {ag.observacoes && (
@@ -426,11 +467,11 @@ export default function AgendaPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button onClick={() => setCursor(moverCursor(view, cursor, -1))} style={btnNav}><ChevronLeft size={16} /></button>
+            <button type="button" aria-label="Período anterior" onClick={() => setCursor(moverCursor(view, cursor, -1))} style={btnNav}><ChevronLeft size={16} /></button>
             <span style={{ fontSize: '1rem', fontWeight: 700, color: '#101826', minWidth: '200px', textAlign: 'center' }}>
               {formatarTituloView(view, cursor)}
             </span>
-            <button onClick={() => setCursor(moverCursor(view, cursor, 1))} style={btnNav}><ChevronRight size={16} /></button>
+            <button type="button" aria-label="Próximo período" onClick={() => setCursor(moverCursor(view, cursor, 1))} style={btnNav}><ChevronRight size={16} /></button>
             <button onClick={() => setCursor(new Date(hoje))} style={btnHoje}>Hoje</button>
           </div>
           <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', borderRadius: '8px', padding: '3px' }}>
@@ -449,6 +490,12 @@ export default function AgendaPage() {
             ))}
           </div>
         </div>
+
+        {erroCarga && (
+          <div role="alert" style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', color: '#dc2626', fontSize: '13px', marginBottom: '12px' }}>
+            {erroCarga}
+          </div>
+        )}
 
         {carregando ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: '#667b94', fontSize: '14px' }}>Carregando...</div>
@@ -469,13 +516,13 @@ export default function AgendaPage() {
 
       {/* Modal lista do dia */}
       {modalDia && (
-        <div style={overlayStyle} onClick={() => { setModalDia(null); setAgDetalhes(null); }}>
+        <div role="dialog" aria-modal="true" aria-label="Agendamentos do dia" style={overlayStyle} onClick={() => { setModalDia(null); setAgDetalhes(null); }}>
           <div style={cardStyle} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#101826' }}>
                 {modalDia.data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
               </h3>
-              <button onClick={() => { setModalDia(null); setAgDetalhes(null); }} style={btnClose}><X size={16} /></button>
+              <button type="button" aria-label="Fechar" onClick={() => { setModalDia(null); setAgDetalhes(null); }} style={btnClose}><X size={16} /></button>
             </div>
             {agDetalhes ? renderDetalhes(agDetalhes) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '60vh', overflowY: 'auto' }}>
@@ -484,7 +531,7 @@ export default function AgendaPage() {
                   return (
                     <div
                       key={ag.id}
-                      onClick={() => setAgDetalhes(ag)}
+                      {...comoBotao(() => setAgDetalhes(ag))}
                       style={{
                         background: cor.bg, borderRadius: '10px',
                         padding: '10px 14px', cursor: 'pointer',
@@ -496,7 +543,7 @@ export default function AgendaPage() {
                         <StatusBadge status={ag.status} />
                       </div>
                       <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                        {new Date(ag.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · {ag.usuarios?.nome ?? '—'}{ag.usuarios?.especialidade ? ` (${ag.usuarios.especialidade})` : ''}
+                        {new Date(ag.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · {ag.usuarios?.nome ?? '—'}{ag.usuarios?.especialidade ? ` (${nomeEspecialidade(ag.usuarios.especialidade)})` : ''}
                       </div>
                     </div>
                   );
@@ -509,11 +556,11 @@ export default function AgendaPage() {
 
       {/* Modal detalhes (timeline view) */}
       {agDetalhes && !modalDia && (
-        <div style={overlayStyle} onClick={() => setAgDetalhes(null)}>
+        <div role="dialog" aria-modal="true" aria-label="Detalhes do agendamento" style={overlayStyle} onClick={() => setAgDetalhes(null)}>
           <div style={cardStyle} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#101826' }}>Detalhes</h3>
-              <button onClick={() => setAgDetalhes(null)} style={btnClose}><X size={16} /></button>
+              <button type="button" aria-label="Fechar" onClick={() => setAgDetalhes(null)} style={btnClose}><X size={16} /></button>
             </div>
             {renderDetalhes(agDetalhes)}
           </div>

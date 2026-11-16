@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { fetchAuth } from "@/lib/auth";
 import { StatusBadge } from "@/app/components/StatusBadge";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro } from "@/lib/api";
+import { paraDependentes } from "@/lib/beneficiarias";
 import { formatarDataPura, formatarTimestamp } from "@/lib/date";
 import Button from "@/components/Button";
+import { formatCpf } from "@/lib/formatters";
 
 interface Queixa {
   id: string;
@@ -144,8 +146,8 @@ export default function DetalheTriagem() {
 
   useEffect(() => {
     fetchAuth(`${API_URL}/triagens/${id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await extrairMensagemErro(res, "Não foi possível carregar a triagem."));
         return res.json();
       })
       .then(async (data: Triagem) => {
@@ -164,7 +166,7 @@ export default function DetalheTriagem() {
           setResponsavel({ id: resp.id, nome: resp.nome, cpf: resp.cpf ?? null });
         }
         const deps = await resDep.json();
-        setDependentes(Array.isArray(deps) ? deps.map((d: any) => ({ id: d.id, nome: d.nome, tipo: d.tipo ?? 'ADULTA' })) : []);
+        setDependentes(paraDependentes(deps));
 
         setLoading(false);
       })
@@ -211,7 +213,7 @@ export default function DetalheTriagem() {
   const tipoBadgeStyle = tipoBadge[b.tipo ?? "ADULTA"] ?? tipoBadge.ADULTA;
 
   const camposBenef: { label: string; value: string | null | undefined }[] = [
-    { label: "CPF",               value: b.cpf },
+    { label: "CPF",               value: formatCpf(b.cpf) },
     { label: "Data de nascimento", value: formatarDataPura(b.data_nascimento, FORMATO_CURTO) || null },
     { label: "Telefone",          value: b.telefone },
     { label: "Endereço",          value: b.endereco },
@@ -297,7 +299,7 @@ export default function DetalheTriagem() {
                         </p>
                         {responsavel.cpf && (
                           <p style={{ fontSize: "11px", color: "#9B8E84", margin: 0 }}>
-                            {responsavel.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}
+                            {formatCpf(responsavel.cpf)}
                           </p>
                         )}
                       </div>

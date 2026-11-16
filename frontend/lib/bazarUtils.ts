@@ -6,6 +6,7 @@
  */
 
 import { formatarDataPura, parseDataPura } from './date';
+import type { Bazar } from './types/bazares';
 
 export const BazarUtils = {
   /**
@@ -174,7 +175,7 @@ export const BazarUtils = {
   /**
    * Exporta bazar para JSON
    */
-  exportJSON: (bazar: any): void => {
+  exportJSON: (bazar: Pick<Bazar, 'id'>): void => {
     const dataStr = JSON.stringify(bazar, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
@@ -200,7 +201,7 @@ export const BazarUtils = {
   /**
    * Ordena bazares por data
    */
-  sortByDate: (bazares: any[], order: 'asc' | 'desc' = 'asc'): any[] => {
+  sortByDate: <T extends Pick<Bazar, 'data'>>(bazares: T[], order: 'asc' | 'desc' = 'asc'): T[] => {
     return [...bazares].sort((a, b) => {
       const dateA = parseDataPura(a.data)?.getTime() ?? 0;
       const dateB = parseDataPura(b.data)?.getTime() ?? 0;
@@ -211,8 +212,8 @@ export const BazarUtils = {
   /**
    * Agrupa bazares por mês
    */
-  groupByMonth: (bazares: any[]): Record<string, any[]> => {
-    const grouped: Record<string, any[]> = {};
+  groupByMonth: <T extends Pick<Bazar, 'data'>>(bazares: T[]): Record<string, T[]> => {
+    const grouped: Record<string, T[]> = {};
 
     bazares.forEach((bazar) => {
       const date = parseDataPura(bazar.data);
@@ -231,7 +232,7 @@ export const BazarUtils = {
   /**
    * Calcula estatísticas de bazares
    */
-  calculateStats: (bazares: any[]) => {
+  calculateStats: (bazares: Pick<Bazar, 'data' | 'local' | 'total_arrecadado'>[]) => {
     const stats = {
       total: bazares.length,
       futuros: bazares.filter((b) => BazarUtils.isFutureBazar(b.data)).length,

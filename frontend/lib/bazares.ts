@@ -1,6 +1,6 @@
 import { fetchAuth } from './auth';
 
-import { API_BASE } from './api';
+import { API_BASE, extrairMensagemErro } from './api';
 
 const API_BASE_URL = `${API_BASE}/bazares`;
 
@@ -51,7 +51,7 @@ export class BazaresAPI {
       : API_BASE_URL;
 
     const res = await fetchAuth(url);
-    if (!res.ok) throw new Error(`Erro ao listar bazares: ${res.status}`);
+    if (!res.ok) throw new Error(await extrairMensagemErro(res, 'Erro ao listar bazares.'));
     return res.json();
   }
 
@@ -60,7 +60,7 @@ export class BazaresAPI {
    */
   static async obter(id: string) {
     const res = await fetchAuth(`${API_BASE_URL}/${id}`);
-    if (!res.ok) throw new Error(`Erro ao obter bazar: ${res.status}`);
+    if (!res.ok) throw new Error(await extrairMensagemErro(res, 'Erro ao obter bazar.'));
     return res.json();
   }
 
@@ -75,8 +75,7 @@ export class BazaresAPI {
     });
 
     if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      throw new Error(error.message || `Erro ao criar bazar: ${res.status}`);
+      throw new Error(await extrairMensagemErro(res, 'Erro ao criar bazar.'));
     }
 
     return res.json();
@@ -93,8 +92,7 @@ export class BazaresAPI {
     });
 
     if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      throw new Error(error.message || `Erro ao atualizar bazar: ${res.status}`);
+      throw new Error(await extrairMensagemErro(res, 'Erro ao atualizar bazar.'));
     }
 
     return res.json();
@@ -108,7 +106,7 @@ export class BazaresAPI {
       method: 'DELETE',
     });
 
-    if (!res.ok) throw new Error(`Erro ao deletar bazar: ${res.status}`);
+    if (!res.ok) throw new Error(await extrairMensagemErro(res, 'Erro ao deletar bazar.'));
   }
 
   /**

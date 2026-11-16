@@ -1,5 +1,5 @@
 import { fetchAuth } from './auth';
-import { API_BASE } from './api';
+import { API_BASE, extrairMensagemErro } from './api';
 
 const API = API_BASE;
 
@@ -45,13 +45,13 @@ export async function listarAgendamentos(params: ListarParams = {}): Promise<Age
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, v); });
   const res = await fetchAuth(`${API}/agendamentos?${qs}`);
-  if (!res.ok) throw new Error('Erro ao buscar agendamentos');
+  if (!res.ok) throw new Error(await extrairMensagemErro(res, 'Erro ao buscar agendamentos.'));
   return res.json();
 }
 
 export async function buscarAgendamento(id: string): Promise<Agendamento> {
   const res = await fetchAuth(`${API}/agendamentos/${id}`);
-  if (!res.ok) throw new Error('Agendamento não encontrado');
+  if (!res.ok) throw new Error(await extrairMensagemErro(res, 'Agendamento não encontrado.'));
   return res.json();
 }
 
@@ -68,8 +68,7 @@ export async function criarAgendamento(dto: {
     body: JSON.stringify(dto),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { message?: string }).message ?? 'Erro ao criar agendamento');
+    throw new Error(await extrairMensagemErro(res, "Erro ao criar agendamento."));
   }
   return res.json();
 }
@@ -90,25 +89,24 @@ export async function editarAgendamento(
     body: JSON.stringify(dto),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { message?: string }).message ?? 'Erro ao editar agendamento');
+    throw new Error(await extrairMensagemErro(res, "Erro ao editar agendamento."));
   }
   return res.json();
 }
 
 export async function excluirAgendamento(id: string): Promise<void> {
   const res = await fetchAuth(`${API}/agendamentos/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Erro ao excluir agendamento');
+  if (!res.ok) throw new Error(await extrairMensagemErro(res, 'Erro ao excluir agendamento.'));
 }
 
 export async function meusAgendamentos(): Promise<Agendamento[]> {
   const res = await fetchAuth(`${API}/agendamentos/meus`);
-  if (!res.ok) throw new Error('Erro ao buscar agendamentos');
+  if (!res.ok) throw new Error(await extrairMensagemErro(res, 'Erro ao buscar agendamentos.'));
   return res.json();
 }
 
 export async function listarProfissionais(): Promise<Profissional[]> {
   const res = await fetchAuth(`${API}/usuarios/profissionais`);
-  if (!res.ok) throw new Error('Erro ao buscar profissionais');
+  if (!res.ok) throw new Error(await extrairMensagemErro(res, 'Erro ao buscar profissionais.'));
   return res.json();
 }

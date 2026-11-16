@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAuth, getUsuario } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro } from "@/lib/api";
+import { buscarBeneficiarias } from "@/lib/beneficiarias";
 import Button from "@/components/Button";
 
 interface FormBeneficiaria {
@@ -109,9 +110,7 @@ export default function NovaTriagem() {
     if (debounceBenefRef.current) clearTimeout(debounceBenefRef.current);
     if (termo.length < 2) { setSugestoesBeneficiaria([]); return; }
     debounceBenefRef.current = setTimeout(async () => {
-      const res = await fetchAuth(`${API_URL}/beneficiarias?busca=${encodeURIComponent(termo)}`);
-      const data = await res.json();
-      setSugestoesBeneficiaria(data.map((b: any) => ({ id: b.id, nome: b.nome })));
+      setSugestoesBeneficiaria(await buscarBeneficiarias(termo));
     }, 300);
   }
 
@@ -147,9 +146,7 @@ export default function NovaTriagem() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (termo.length < 2) { setSugestoesResponsavel([]); return; }
     debounceRef.current = setTimeout(async () => {
-      const res = await fetchAuth(`${API_URL}/beneficiarias?tipo=ADULTA&busca=${encodeURIComponent(termo)}`);
-      const data = await res.json();
-      setSugestoesResponsavel(data.map((b: any) => ({ id: b.id, nome: b.nome })));
+      setSugestoesResponsavel(await buscarBeneficiarias(termo, "ADULTA"));
     }, 300);
   }
 
@@ -199,8 +196,7 @@ export default function NovaTriagem() {
           body: JSON.stringify(payloadB),
         });
         if (!resB.ok) {
-          const err = await resB.json().catch(() => ({}));
-          throw new Error(err.message ?? `Erro ao criar beneficiária (${resB.status})`);
+          throw new Error(await extrairMensagemErro(resB, "Erro ao criar beneficiária."));
         }
         ({ id: beneficiaria_id } = await resB.json());
       }
@@ -209,11 +205,10 @@ export default function NovaTriagem() {
       const resT = await fetchAuth(`${API_URL}/triagens`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ beneficiaria_id, triador_id: usuario?.id ?? '' }),
+        body: JSON.stringify({ beneficiaria_id }),
       });
       if (!resT.ok) {
-        const err = await resT.json().catch(() => ({}));
-        throw new Error(err.message ?? `Erro ao criar triagem (${resT.status})`);
+        throw new Error(await extrairMensagemErro(resT, "Erro ao criar triagem."));
       }
       const { id: triagem_id } = await resT.json();
 
@@ -233,8 +228,7 @@ export default function NovaTriagem() {
         body: JSON.stringify(payloadQ),
       });
       if (!resQ.ok) {
-        const err = await resQ.json().catch(() => ({}));
-        throw new Error(err.message ?? `Erro ao registrar queixa (${resQ.status})`);
+        throw new Error(await extrairMensagemErro(resQ, "Erro ao registrar queixa."));
       }
 
       router.push("/triagens");
@@ -347,6 +341,7 @@ export default function NovaTriagem() {
                         </span>
                         <button
                           type="button"
+                          aria-label="Remover seleção"
                           onClick={() => { setBeneficiariaSelecionada(null); setBuscaBeneficiaria(''); }}
                           style={{
                             background: "none", border: "none", cursor: "pointer",
@@ -400,38 +395,38 @@ export default function NovaTriagem() {
 
                 {/* Nome */}
                 <div style={{ gridColumn: "1 / -1" }}>
-                  <label style={labelStyle}>Nome completo *</label>
-                  <input name="nome" value={formB.nome} onChange={changeB} placeholder="Nome completo" style={inputStyle} />
+                  <label htmlFor="triagem-campo-1" style={labelStyle}>Nome completo *</label>
+                  <input id="triagem-campo-1" name="nome" value={formB.nome} onChange={changeB} placeholder="Nome completo" style={inputStyle} />
                 </div>
 
                 {/* CPF */}
                 <div>
-                  <label style={labelStyle}>CPF</label>
-                  <input name="cpf" value={formB.cpf} onChange={(e) => setFormB(prev => ({ ...prev, cpf: maskCPF(e.target.value) }))} placeholder="000.000.000-00" style={inputStyle} />
+                  <label htmlFor="triagem-campo-2" style={labelStyle}>CPF</label>
+                  <input id="triagem-campo-2" name="cpf" value={formB.cpf} onChange={(e) => setFormB(prev => ({ ...prev, cpf: maskCPF(e.target.value) }))} placeholder="000.000.000-00" style={inputStyle} />
                 </div>
 
                 {/* Data nascimento */}
                 <div>
-                  <label style={labelStyle}>Data de nascimento</label>
-                  <input type="date" name="data_nascimento" value={formB.data_nascimento} onChange={changeB} style={inputStyle} />
+                  <label htmlFor="triagem-campo-3" style={labelStyle}>Data de nascimento</label>
+                  <input id="triagem-campo-3" type="date" name="data_nascimento" value={formB.data_nascimento} onChange={changeB} style={inputStyle} />
                 </div>
 
                 {/* Telefone */}
                 <div>
-                  <label style={labelStyle}>Telefone</label>
-                  <input name="telefone" value={formB.telefone} onChange={(e) => setFormB(prev => ({ ...prev, telefone: maskTelefone(e.target.value) }))} placeholder="(00) 00000-0000" style={inputStyle} />
+                  <label htmlFor="triagem-campo-4" style={labelStyle}>Telefone</label>
+                  <input id="triagem-campo-4" name="telefone" value={formB.telefone} onChange={(e) => setFormB(prev => ({ ...prev, telefone: maskTelefone(e.target.value) }))} placeholder="(00) 00000-0000" style={inputStyle} />
                 </div>
 
                 {/* Endereço */}
                 <div>
-                  <label style={labelStyle}>Endereço</label>
-                  <input name="endereco" value={formB.endereco} onChange={changeB} placeholder="Rua, número, bairro" style={inputStyle} />
+                  <label htmlFor="triagem-campo-5" style={labelStyle}>Endereço</label>
+                  <input id="triagem-campo-5" name="endereco" value={formB.endereco} onChange={changeB} placeholder="Rua, número, bairro" style={inputStyle} />
                 </div>
 
                 {/* Tipo */}
                 <div>
-                  <label style={labelStyle}>Tipo</label>
-                  <select name="tipo" value={formB.tipo} onChange={changeB} style={inputStyle}>
+                  <label htmlFor="triagem-campo-6" style={labelStyle}>Tipo</label>
+                  <select id="triagem-campo-6" name="tipo" value={formB.tipo} onChange={changeB} style={inputStyle}>
                     <option value="ADULTA">Adulta</option>
                     <option value="ADOLESCENTE">Adolescente</option>
                     <option value="CRIANCA">Criança</option>
@@ -452,6 +447,7 @@ export default function NovaTriagem() {
                         </span>
                         <button
                           type="button"
+                          aria-label="Remover seleção"
                           onClick={() => { setResponsavelSelecionada(null); setBuscaResponsavel(''); }}
                           style={{
                             background: "none", border: "none", cursor: "pointer",
@@ -498,8 +494,8 @@ export default function NovaTriagem() {
 
                 {/* Estado civil */}
                 <div>
-                  <label style={labelStyle}>Estado civil</label>
-                  <select name="estado_civil" value={formB.estado_civil} onChange={changeB} style={inputStyle}>
+                  <label htmlFor="triagem-campo-7" style={labelStyle}>Estado civil</label>
+                  <select id="triagem-campo-7" name="estado_civil" value={formB.estado_civil} onChange={changeB} style={inputStyle}>
                     <option value="">— Selecione —</option>
                     <option value="SOLTEIRA">Solteira</option>
                     <option value="CASADA">Casada</option>
@@ -511,8 +507,8 @@ export default function NovaTriagem() {
 
                 {/* Escolaridade */}
                 <div>
-                  <label style={labelStyle}>Escolaridade</label>
-                  <select name="escolaridade" value={formB.escolaridade} onChange={changeB} style={inputStyle}>
+                  <label htmlFor="triagem-campo-8" style={labelStyle}>Escolaridade</label>
+                  <select id="triagem-campo-8" name="escolaridade" value={formB.escolaridade} onChange={changeB} style={inputStyle}>
                     <option value="">— Selecione —</option>
                     <option value="SEM_ESCOLARIDADE">Sem escolaridade</option>
                     <option value="FUNDAMENTAL">Fundamental</option>
@@ -524,8 +520,8 @@ export default function NovaTriagem() {
 
                 {/* Raça */}
                 <div>
-                  <label style={labelStyle}>Raça / Cor</label>
-                  <select name="raca" value={formB.raca} onChange={changeB} style={inputStyle}>
+                  <label htmlFor="triagem-campo-9" style={labelStyle}>Raça / Cor</label>
+                  <select id="triagem-campo-9" name="raca" value={formB.raca} onChange={changeB} style={inputStyle}>
                     <option value="">— Selecione —</option>
                     <option value="BRANCA">Branca</option>
                     <option value="PRETA">Preta</option>
@@ -537,14 +533,14 @@ export default function NovaTriagem() {
 
                 {/* Ocupação */}
                 <div>
-                  <label style={labelStyle}>Ocupação</label>
-                  <input name="ocupacao" value={formB.ocupacao} onChange={changeB} placeholder="Ex: Doméstica, Vendedora..." style={inputStyle} />
+                  <label htmlFor="triagem-campo-10" style={labelStyle}>Ocupação</label>
+                  <input id="triagem-campo-10" name="ocupacao" value={formB.ocupacao} onChange={changeB} placeholder="Ex: Doméstica, Vendedora..." style={inputStyle} />
                 </div>
 
                 {/* Empregada */}
                 <div>
-                  <label style={labelStyle}>Situação de emprego</label>
-                  <select name="empregada" value={formB.empregada} onChange={changeB} style={inputStyle}>
+                  <label htmlFor="triagem-campo-11" style={labelStyle}>Situação de emprego</label>
+                  <select id="triagem-campo-11" name="empregada" value={formB.empregada} onChange={changeB} style={inputStyle}>
                     <option value="">— Selecione —</option>
                     <option value="true">Empregada</option>
                     <option value="false">Desempregada</option>
@@ -553,8 +549,8 @@ export default function NovaTriagem() {
 
                 {/* Status */}
                 <div>
-                  <label style={labelStyle}>Status</label>
-                  <select name="status" value={formB.status} onChange={changeB} style={inputStyle}>
+                  <label htmlFor="triagem-campo-12" style={labelStyle}>Status</label>
+                  <select id="triagem-campo-12" name="status" value={formB.status} onChange={changeB} style={inputStyle}>
                     <option value="ATIVA">Ativa</option>
                     <option value="EM_ESPERA">Em espera</option>
                     <option value="ENCERRADA">Encerrada</option>
@@ -574,32 +570,32 @@ export default function NovaTriagem() {
 
                 {/* Queixa principal */}
                 <div style={{ gridColumn: "1 / -1" }}>
-                  <label style={labelStyle}>Queixa principal *</label>
-                  <textarea name="queixa_principal" value={formQ.queixa_principal} onChange={changeQ} rows={4} placeholder="Descreva a principal queixa" style={textareaStyle} />
+                  <label htmlFor="triagem-campo-13" style={labelStyle}>Queixa principal *</label>
+                  <textarea id="triagem-campo-13" name="queixa_principal" value={formQ.queixa_principal} onChange={changeQ} rows={4} placeholder="Descreva a principal queixa" style={textareaStyle} />
                 </div>
 
                 {/* Queixa secundária */}
                 <div>
-                  <label style={labelStyle}>Queixa secundária</label>
-                  <textarea name="queixa_secundaria" value={formQ.queixa_secundaria} onChange={changeQ} rows={4} placeholder="Queixa complementar" style={textareaStyle} />
+                  <label htmlFor="triagem-campo-14" style={labelStyle}>Queixa secundária</label>
+                  <textarea id="triagem-campo-14" name="queixa_secundaria" value={formQ.queixa_secundaria} onChange={changeQ} rows={4} placeholder="Queixa complementar" style={textareaStyle} />
                 </div>
 
                 {/* Sintomas */}
                 <div>
-                  <label style={labelStyle}>Sintomas</label>
-                  <textarea name="sintomas" value={formQ.sintomas} onChange={changeQ} rows={4} placeholder="Sintomas apresentados" style={textareaStyle} />
+                  <label htmlFor="triagem-campo-15" style={labelStyle}>Sintomas</label>
+                  <textarea id="triagem-campo-15" name="sintomas" value={formQ.sintomas} onChange={changeQ} rows={4} placeholder="Sintomas apresentados" style={textareaStyle} />
                 </div>
 
                 {/* Tipo de violência */}
                 <div>
-                  <label style={labelStyle}>Tipo de violência</label>
-                  <input name="tipo_violencia" value={formQ.tipo_violencia} onChange={changeQ} placeholder="Ex: física, psicológica..." style={inputStyle} />
+                  <label htmlFor="triagem-campo-16" style={labelStyle}>Tipo de violência</label>
+                  <input id="triagem-campo-16" name="tipo_violencia" value={formQ.tipo_violencia} onChange={changeQ} placeholder="Ex: física, psicológica..." style={inputStyle} />
                 </div>
 
                 {/* Observações */}
                 <div>
-                  <label style={labelStyle}>Observações</label>
-                  <textarea name="observacoes" value={formQ.observacoes} onChange={changeQ} rows={4} placeholder="Observações adicionais" style={textareaStyle} />
+                  <label htmlFor="triagem-campo-17" style={labelStyle}>Observações</label>
+                  <textarea id="triagem-campo-17" name="observacoes" value={formQ.observacoes} onChange={changeQ} rows={4} placeholder="Observações adicionais" style={textareaStyle} />
                 </div>
               </div>
             )}

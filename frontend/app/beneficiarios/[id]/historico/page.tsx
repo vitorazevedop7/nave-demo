@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Calendar, FileText, ClipboardList } from "lucide-react";
 import { fetchAuth, getUsuario } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro, mensagemDeErro } from "@/lib/api";
+import type { Agendamento } from "@/lib/agendamentos";
 import { formatarDataPura, formatarTimestamp } from "@/lib/date";
 import { CarimboRestrito, ResumoAcesso } from "@/components/AcessoProntuario";
 import { nomeEspecialidade, type UsuarioCompartilhavel, type Visibilidade } from "@/lib/visibilidade";
+import { formatCpf } from "@/lib/formatters";
 
 // O que a API devolve por prontuário depende de quem pergunta: conteúdo
 // completo, ou só o carimbo (`conteudo_restrito`), sem campo clínico nenhum.
@@ -26,17 +28,34 @@ type ProntuarioItem = {
   profissional?: string;
 };
 
+type BeneficiariaHistorico = {
+  nome?: string;
+  cpf?: string | null;
+  telefone?: string | null;
+  data_nascimento?: string | null;
+  endereco?: string | null;
+  status?: string | null;
+  deletado_em?: string | null;
+};
+
+type TriagemHistorico = {
+  id: string;
+  criado_em: string;
+  queixas?: { queixa_principal?: string }[];
+};
+
 export default function HistoricoBeneficiariaPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
-  const [beneficiaria, setBeneficiaria] = useState<any>(null);
-  const [triagens, setTriagens] = useState<any[]>([]);
-  const [agendamentos, setAgendamentos] = useState<any[]>([]);
+  const [beneficiaria, setBeneficiaria] = useState<BeneficiariaHistorico | null>(null);
+  const [triagens, setTriagens] = useState<TriagemHistorico[]>([]);
+  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [prontuarios, setProntuarios] = useState<ProntuarioItem[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioCompartilhavel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erroCarga, setErroCarga] = useState<string | null>(null);
 
   const usuarioLogadoId = getUsuario()?.id;
 
@@ -50,6 +69,7 @@ export default function HistoricoBeneficiariaPage() {
           fetchAuth(`${API_URL}/prontuarios/beneficiaria/${id}`),
         ]);
 
+        if (!benefRes.ok) throw new Error(await extrairMensagemErro(benefRes, "Não foi possível carregar a beneficiária."));
         const benefData = await benefRes.json();
         const triData = triRes.ok ? await triRes.json() : [];
         const agData = agRes.ok ? await agRes.json() : [];
@@ -72,8 +92,8 @@ export default function HistoricoBeneficiariaPage() {
         setTriagens(Array.isArray(triData) ? triData : []);
         setAgendamentos(Array.isArray(agData) ? agData : []);
         setProntuarios(Array.isArray(proData) ? proData : []);
-      } catch (error) {
-        console.error("Erro ao carregar histórico:", error);
+      } catch (err: unknown) {
+        setErroCarga(mensagemDeErro(err, "Não foi possível carregar o histórico desta beneficiária."));
       } finally {
         setLoading(false);
       }
@@ -93,6 +113,7 @@ export default function HistoricoBeneficiariaPage() {
   return (
     <div style={{ padding: "36px 32px", minHeight: "100vh" }}>
       <button
+        type="button"
         onClick={() => router.back()}
         style={{
           display: "flex",
@@ -118,6 +139,11 @@ export default function HistoricoBeneficiariaPage() {
         <p style={{ fontSize: "14px", color: "#64748b" }}>
           {beneficiaria?.nome || "Beneficiária"}
         </p>
+        {erroCarga && (
+          <p role="alert" style={{ marginTop: "10px", fontSize: "13px", color: "#b91c1c" }}>
+            {erroCarga}
+          </p>
+        )}
         {beneficiaria?.deletado_em && (
           <span
             style={{
@@ -153,7 +179,7 @@ export default function HistoricoBeneficiariaPage() {
 
         <div style={{ display: "grid", gap: "12px" }}>
           <Info label="Nome" value={beneficiaria?.nome} />
-          <Info label="CPF" value={beneficiaria?.cpf} />
+          <Info label="CPF" value={formatCpf(beneficiaria?.cpf)} />
           <Info label="Telefone" value={beneficiaria?.telefone} />
           <Info
             label="Data de Nascimento"
@@ -174,7 +200,7 @@ export default function HistoricoBeneficiariaPage() {
           <>
             <strong>Queixa:</strong>{" "}
             {item.queixas?.[0]?.queixa_principal || "-"}
-            {item.queixas?.length > 1 && ` (+${item.queixas.length - 1})`}
+            {(item.queixas?.length ?? 0) > 1 && ` (+${(item.queixas?.length ?? 1) - 1})`}
           </>
         )}
       />
@@ -230,7 +256,7 @@ export default function HistoricoBeneficiariaPage() {
   );
 }
 
-function Info({ label, value }: { label: string; value: any }) {
+function Info({ label, value }: { label: string; value?: string | null }) {
   return (
     <div
       style={{
@@ -250,7 +276,7 @@ function Info({ label, value }: { label: string; value: any }) {
   );
 }
 
-function HistoricoCard({
+function HistoricoCard<T extends object>({
   titulo,
   icon,
   itens,
@@ -260,10 +286,10 @@ function HistoricoCard({
 }: {
   titulo: string;
   icon: React.ReactNode;
-  itens: any[];
-  campoData: string;
-  getData?: (item: any) => string | undefined;
-  renderItem: (item: any) => React.ReactNode;
+  itens: T[];
+  campoData: keyof T & string;
+  getData?: (item: T) => string | undefined;
+  renderItem: (item: T) => React.ReactNode;
 }) {
   return (
     <div
@@ -294,7 +320,7 @@ function HistoricoCard({
       ) : (
         <div style={{ display: "grid", gap: "14px" }}>
           {itens.map((item, index) => {
-            const data = getData ? getData(item) : item[campoData];
+            const data = getData ? getData(item) : (item[campoData] as string | undefined);
             return (
             <div
               key={index}

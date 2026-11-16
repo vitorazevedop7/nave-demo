@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId, cloneElement, isValidElement } from "react";
 import { fetchAuth } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro, mensagemDeErro } from "@/lib/api";
+import { useDialog } from "@/components/DialogProvider";
 import { formatarDataPura, hojeInputDate, parseDataPura } from "@/lib/date";
 import Button from "@/components/Button";
 
@@ -196,14 +197,6 @@ function IconPeople() {
   );
 }
 
-function IconEdit() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L21 6Z" />
-    </svg>
-  );
-}
-
 function IconTrash() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -332,6 +325,17 @@ function Badge({ tipo }: { tipo: string }) {
   );
 }
 
+/** Fecha o diálogo ao pressionar Esc. */
+function useFecharComEsc(onClose: () => void) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+}
+
 /* ─── Confirmation Modal ──────────────────────────────────── */
 function ConfirmModal({
   title,
@@ -346,8 +350,12 @@ function ConfirmModal({
   onCancel: () => void;
   isLoading?: boolean;
 }) {
+  useFecharComEsc(onCancel);
   return (
     <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-label={title}
       style={{
         position: "fixed",
         inset: 0,
@@ -394,8 +402,12 @@ function Modal({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  useFecharComEsc(onClose);
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
       style={{
         position: "fixed",
         inset: 0,
@@ -422,6 +434,8 @@ function Modal({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
           <h2 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "var(--text-primary)" }}>{title}</h2>
           <button
+            type="button"
+            aria-label="Fechar"
             onClick={onClose}
             style={{
               border: "none",
@@ -453,12 +467,15 @@ function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
+  const campo = isValidElement<{ id?: string }>(children) ? cloneElement(children, { id: children.props.id ?? id }) : children;
+  const campoId = isValidElement<{ id?: string }>(children) ? (children.props.id ?? id) : undefined;
   return (
     <div style={{ marginBottom: "16px" }}>
-      <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+      <label htmlFor={campoId} style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
         {label}
       </label>
-      {children}
+      {campo}
     </div>
   );
 }
@@ -477,6 +494,7 @@ const inputStyle: React.CSSProperties = {
 
 /* ─── Main Page ─────────────────────────────────────────────── */
 export default function Doacoes() {
+  const { alert } = useDialog();
   const [doacoes, setDoacoes] = useState<Doacao[]>([]);
   const [doadores, setDoadores] = useState<Doador[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
@@ -517,10 +535,12 @@ export default function Doacoes() {
       setDoacoes(r1);
       setDoadores(r2);
       setCampanhas(r3);
+    } catch (err: unknown) {
+      await alert({ message: mensagemDeErro(err, "Não foi possível carregar as doações."), tone: "error" });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [alert]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -529,16 +549,6 @@ export default function Doacoes() {
     const valor = typeof d.valor === 'string' ? parseFloat(d.valor) : (d.valor ?? 0);
     return s + valor;
   }, 0);
-  const now = new Date();
-  const mesAtual = doacoes.filter((d) => {
-    const dd = parseDataPura(d.data);
-    return dd?.getMonth() === now.getMonth() && dd?.getFullYear() === now.getFullYear();
-  });
-  const valorMes = mesAtual.reduce((s, d) => {
-    const valor = typeof d.valor === 'string' ? parseFloat(d.valor) : (d.valor ?? 0);
-    return s + valor;
-  }, 0);
-
   /* ── Filtered list ─────────────────────────────────────────── */
   const filtered = doacoes.filter((d) => {
     const matchSearch =
@@ -579,7 +589,11 @@ export default function Doacoes() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (r.ok) { setActiveModal(null); load(); }
+      if (!r.ok) throw new Error(await extrairMensagemErro(r, "Não foi possível registrar a doação."));
+      setActiveModal(null);
+      load();
+    } catch (err: unknown) {
+      await alert({ message: mensagemDeErro(err), tone: "error" });
     } finally { setSubmitting(false); }
   }
 
@@ -609,9 +623,10 @@ export default function Doacoes() {
       });
       if (r.ok) { setActiveModal(null); setFormErrors({}); load(); }
       else {
-        const err = await r.json();
-        if (err.message) setFormErrors({ form: err.message });
+        setFormErrors({ form: await extrairMensagemErro(r, "Não foi possível cadastrar o doador.") });
       }
+    } catch (err: unknown) {
+      setFormErrors({ form: mensagemDeErro(err) });
     } finally { setSubmitting(false); }
   }
 
@@ -630,15 +645,21 @@ export default function Doacoes() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (r.ok) { resetFormCampanha(); load(); }
+        if (!r.ok) throw new Error(await extrairMensagemErro(r, "Não foi possível salvar a campanha."));
+        resetFormCampanha();
+        load();
       } else {
         const r = await fetchAuth(`${API_URL}/campanhas-doacoes`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (r.ok) { resetFormCampanha(); load(); }
+        if (!r.ok) throw new Error(await extrairMensagemErro(r, "Não foi possível criar a campanha."));
+        resetFormCampanha();
+        load();
       }
+    } catch (err: unknown) {
+      await alert({ message: mensagemDeErro(err), tone: "error" });
     } finally { setSubmitting(false); }
   }
 
@@ -692,12 +713,12 @@ export default function Doacoes() {
       else if (confirmDelete.type === 'doacao') url = `${API_URL}/doacoes/${confirmDelete.id}`;
 
       const r = await fetchAuth(url, { method: "DELETE" });
-      if (r.ok) {
-        setConfirmDelete(null);
-        load();
-      }
-    } catch (err) {
-      console.error("Erro ao deletar", err);
+      if (!r.ok) throw new Error(await extrairMensagemErro(r, "Não foi possível excluir o registro."));
+      setConfirmDelete(null);
+      load();
+    } catch (err: unknown) {
+      setConfirmDelete(null);
+      await alert({ message: mensagemDeErro(err), tone: "error" });
     } finally {
       setIsDeleting(false);
     }
@@ -787,8 +808,8 @@ export default function Doacoes() {
                         <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, marginRight: "8px" }}>
                           {c.meta_valor ? `${Math.round(pct)}%` : fmtBRL(c.total_arrecadado!)}
                         </span>
-                        <button onClick={() => openEditarCampanha(c)} style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "16px", padding: 0 }}>✏️</button>
-                        <button onClick={() => deletarCampanha(c.id, c.nome)} aria-label={`Excluir ${c.nome}`} style={{ padding: "5px 10px", border: "0.5px solid #fca5a5", borderRadius: "8px", color: "#DC2626", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")} onMouseLeave={(e) => (e.currentTarget.style.background = "#fef2f2")}><IconTrash /></button>
+                        <button type="button" onClick={() => openEditarCampanha(c)} aria-label={`Editar ${c.nome}`} title="Editar" style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "16px", padding: 0 }}>✏️</button>
+                        <button type="button" onClick={() => deletarCampanha(c.id, c.nome)} aria-label={`Excluir ${c.nome}`} style={{ padding: "5px 10px", border: "0.5px solid #fca5a5", borderRadius: "8px", color: "#DC2626", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")} onMouseLeave={(e) => (e.currentTarget.style.background = "#fef2f2")}><IconTrash /></button>
                       </div>
                     </div>
                     {c.meta_valor && (
@@ -872,7 +893,7 @@ export default function Doacoes() {
                         {formatarDataPura(d.data)}
                       </td>
                       <td style={{ padding: "12px 12px" }}>
-                        <button onClick={() => deletarDoacao(d.id)} aria-label="Excluir doação" style={{ padding: "5px 10px", border: "0.5px solid #fca5a5", borderRadius: "8px", color: "#DC2626", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")} onMouseLeave={(e) => (e.currentTarget.style.background = "#fef2f2")}><IconTrash /></button>
+                        <button type="button" onClick={() => deletarDoacao(d.id)} aria-label="Excluir doação" style={{ padding: "5px 10px", border: "0.5px solid #fca5a5", borderRadius: "8px", color: "#DC2626", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")} onMouseLeave={(e) => (e.currentTarget.style.background = "#fef2f2")}><IconTrash /></button>
                       </td>
                     </tr>
                   ))}
@@ -980,7 +1001,7 @@ export default function Doacoes() {
 
       {/* ── Modal: Nova Campanha ────────────────────────────────── */}
       {activeModal === "campanha" && (
-        <Modal title={editingCampanhaId ? "Editar Campanha" : "Nova Campanha"} onClose={() => { editingCampanhaId ? resetFormCampanha() : setActiveModal(null); }}>
+        <Modal title={editingCampanhaId ? "Editar Campanha" : "Nova Campanha"} onClose={resetFormCampanha}>
           <Field label="Nome *">
             <input type="text" style={inputStyle} value={formCampanha.nome} onChange={(e) => setFormCampanha({ ...formCampanha, nome: e.target.value })} />
           </Field>
@@ -991,7 +1012,7 @@ export default function Doacoes() {
             <input type="text" placeholder="Deixe vazio para sem meta" style={inputStyle} value={formCampanha.meta_valor} onChange={(e) => setFormCampanha({ ...formCampanha, meta_valor: e.target.value })} />
           </Field>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
-            <Button variant="ghost" onClick={() => { editingCampanhaId ? resetFormCampanha() : setActiveModal(null); }}>Cancelar</Button>
+            <Button variant="ghost" onClick={resetFormCampanha}>Cancelar</Button>
             <Button onClick={submitCampanha} disabled={submitting || !formCampanha.nome}>
               {submitting ? "Salvando…" : editingCampanhaId ? "Salvar Alterações" : "Criar Campanha"}
             </Button>
@@ -1015,8 +1036,8 @@ export default function Doacoes() {
                     </p>
                   </div>
                   <div style={{ display: "flex", gap: "6px" }}>
-                    <button onClick={() => openEditarDoador(d)} style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "16px", padding: 0 }}>✏️</button>
-                    <button onClick={() => deletarDoador(d.id, d.nome)} aria-label={`Excluir ${d.nome}`} style={{ padding: "5px 10px", border: "0.5px solid #fca5a5", borderRadius: "8px", color: "#DC2626", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")} onMouseLeave={(e) => (e.currentTarget.style.background = "#fef2f2")}><IconTrash /></button>
+                    <button type="button" onClick={() => openEditarDoador(d)} aria-label={`Editar ${d.nome}`} title="Editar" style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "16px", padding: 0 }}>✏️</button>
+                    <button type="button" onClick={() => deletarDoador(d.id, d.nome)} aria-label={`Excluir ${d.nome}`} style={{ padding: "5px 10px", border: "0.5px solid #fca5a5", borderRadius: "8px", color: "#DC2626", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")} onMouseLeave={(e) => (e.currentTarget.style.background = "#fef2f2")}><IconTrash /></button>
                   </div>
                 </div>
               ))}

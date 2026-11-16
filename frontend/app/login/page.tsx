@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useState, FormEvent } from "react";
-import { API_URL } from "@/lib/api";
+import Image from "next/image";
+import { API_URL, extrairMensagemErro } from "@/lib/api";
 
 const LoginLogo3D = dynamic(() => import("@/components/LoginLogo3D"), {
   ssr: false,
@@ -43,34 +44,8 @@ export default function LoginPage() {
         throw new Error("Não foi possível conectar ao servidor. Verifique sua conexão com a internet.");
       }
 
-      let data: {
-        access_token?: string;
-        usuario?: unknown;
-        message?: string | string[];
-        statusCode?: number;
-      };
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("O servidor retornou uma resposta inesperada. Tente novamente.");
-      }
-
       if (res.status === 401) {
         throw new Error("E-mail ou senha incorretos. Verifique seus dados e tente novamente.");
-      }
-
-      if (res.status === 400) {
-        const msgs = Array.isArray(data.message) ? data.message : [data.message];
-        const traducoes: Record<string, string> = {
-          "email must be an email": "Informe um e-mail válido.",
-          "senha must be longer than or equal to 6 characters": "A senha deve ter pelo menos 6 caracteres.",
-          "senha must be a string": "A senha é obrigatória.",
-        };
-        const legivel = msgs
-          .map((m) => (m ? (traducoes[m] ?? m) : null))
-          .filter(Boolean)
-          .join(" ");
-        throw new Error(legivel || "Preencha todos os campos corretamente.");
       }
 
       if (res.status === 403) {
@@ -78,7 +53,14 @@ export default function LoginPage() {
       }
 
       if (!res.ok) {
-        throw new Error("Algo deu errado no servidor. Tente novamente em alguns instantes.");
+        throw new Error(await extrairMensagemErro(res, "Preencha todos os campos corretamente."));
+      }
+
+      let data: { access_token?: string; usuario?: unknown };
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("O servidor retornou uma resposta inesperada. Tente novamente.");
       }
 
       localStorage.setItem("access_token", data.access_token as string);
@@ -215,6 +197,7 @@ export default function LoginPage() {
             {/* Mensagem de erro */}
             {error && (
               <div
+                role="alert"
                 style={{
                   padding: "10px 14px",
                   borderRadius: "10px",
@@ -286,9 +269,11 @@ export default function LoginPage() {
       >
         <LoginLogo3D width="100%" height="580px" />
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", marginTop: "8px" }}>
-          <img
+          <Image
             src="/imgs/nave_iniciais_logo.png"
-            alt="nave"
+            alt="NAVE"
+            width={318}
+            height={102}
             style={{ height: "32px", width: "auto" }}
           />
           <p

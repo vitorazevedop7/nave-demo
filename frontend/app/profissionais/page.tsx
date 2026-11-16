@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAuth } from "@/lib/auth";
 import { StatusBadge } from "@/app/components/StatusBadge";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro } from "@/lib/api";
 import { formatarTimestamp } from "@/lib/date";
 import { useDialog } from "@/components/DialogProvider";
 import Button from "@/components/Button";
@@ -82,8 +82,8 @@ export default function Profissionais() {
 
   useEffect(() => {
     fetchAuth(`${API_URL}/usuarios`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await extrairMensagemErro(res, "Não foi possível carregar os profissionais."));
         return res.json();
       })
       .then((data: Usuario[]) => {

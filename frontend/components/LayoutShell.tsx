@@ -20,7 +20,6 @@ const ROUTE_PERFIS: Record<string, string[]> = {
   "/doacoes": ["GESTORA"],
   "/bazares": ["GESTORA"],
   "/agenda": ["GESTORA", "TRIADORA", "PROFISSIONAL"],
-  "/calendario": ["GESTORA", "TRIADORA"],
 };
 
 export default function LayoutShell({ children }: { children: React.ReactNode }) {

@@ -1,39 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
 import { fetchAuth } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro, mensagemDeErro } from "@/lib/api";
 import { formatarDataPura, paraInputDate, parseDataPura } from "@/lib/date";
 import { useDialog } from "@/components/DialogProvider";
 import Button from "@/components/Button";
-
-interface Usuario {
-  id: string;
-  nome: string;
-  especialidade: string | null;
-  email: string;
-}
-
-interface BazarProfissional {
-  id: string;
-  usuarios: Usuario;
-}
-
-interface Bazar {
-  id: string;
-  nome: string;
-  data: string;
-  horario_inicio: string | null;
-  horario_fim: string | null;
-  local: string | null;
-  descricao: string | null;
-  total_arrecadado: number | null;
-  observacoes: string | null;
-  criado_em: string;
-  usuarios: { id: string; nome: string } | null;
-  bazar_profissionais: BazarProfissional[];
-}
+import type { Bazar, BazarUsuario as Usuario } from "@/lib/types/bazares";
 
 interface UserInfo {
   id: string;
@@ -59,7 +32,6 @@ function formatCurrency(value: number | null): string {
 }
 
 export default function Bazares() {
-  const router = useRouter();
   const { confirm, alert } = useDialog();
   const [bazares, setBazares] = useState<Bazar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,12 +58,6 @@ export default function Bazares() {
   const isGestora = userInfo?.perfis?.includes("GESTORA");
   const canEdit = isGestora;
 
-  useEffect(() => {
-    loadUserInfo();
-    loadBazares();
-    loadProfissionais();
-  }, []);
-
   async function loadUserInfo() {
     try {
       const res = await fetchAuth(`${API_URL}/auth/me`);
@@ -99,36 +65,43 @@ export default function Bazares() {
         const data = await res.json();
         setUserInfo(data);
       }
-    } catch (err) {
-      console.error("Erro ao carregar informações do usuário", err);
+    } catch {
+      // Sem /auth/me o usuário apenas não vê ações de edição.
+      setUserInfo(null);
     }
   }
 
   async function loadBazares() {
     try {
       const res = await fetchAuth(`${API_URL}/bazares`);
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      if (!res.ok) throw new Error(await extrairMensagemErro(res, "Não foi possível carregar os bazares."));
       const data = await res.json();
       setBazares(data);
       setLoading(false);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(mensagemDeErro(err, "Não foi possível carregar os bazares."));
       setLoading(false);
     }
   }
 
-  async function loadProfissionais() {
+  const loadProfissionais = useCallback(async () => {
     try {
       const res = await fetchAuth(`${API_URL}/usuarios`);
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      if (!res.ok) throw new Error(await extrairMensagemErro(res, "Não foi possível carregar os profissionais."));
       const data = await res.json();
       setProfissionais(data);
-    } catch (err) {
-      console.error("Erro ao carregar profissionais", err);
+    } catch (err: unknown) {
+      await alert({ message: mensagemDeErro(err, "Não foi possível carregar os profissionais."), tone: "error" });
     }
-  }
+  }, [alert]);
 
-  function resetForm() {
+  useEffect(() => {
+    loadUserInfo();
+    loadBazares();
+    loadProfissionais();
+  }, [loadProfissionais]);
+
+  const resetForm = useCallback(() => {
     setFormData({
       nome: "",
       data: "",
@@ -142,7 +115,16 @@ export default function Bazares() {
     });
     setEditingId(null);
     setShowForm(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") resetForm();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showForm, resetForm]);
 
   function openNewBazar() {
     resetForm();
@@ -199,7 +181,7 @@ export default function Bazares() {
           body: JSON.stringify(payload),
         });
 
-        if (!res.ok) throw new Error("Erro ao atualizar bazar");
+        if (!res.ok) throw new Error(await extrairMensagemErro(res, "Erro ao atualizar bazar."));
         await alert({ message: "Bazar atualizado com sucesso!", tone: "success" });
       } else {
         const res = await fetchAuth(`${API_URL}/bazares`, {
@@ -208,14 +190,14 @@ export default function Bazares() {
           body: JSON.stringify(payload),
         });
 
-        if (!res.ok) throw new Error("Erro ao criar bazar");
+        if (!res.ok) throw new Error(await extrairMensagemErro(res, "Erro ao criar bazar."));
         await alert({ message: "Bazar criado com sucesso!", tone: "success" });
       }
 
       resetForm();
       loadBazares();
-    } catch (err: any) {
-      await alert({ message: err.message, tone: "error" });
+    } catch (err: unknown) {
+      await alert({ message: mensagemDeErro(err), tone: "error" });
     } finally {
       setSubmitLoading(false);
     }
@@ -234,11 +216,11 @@ export default function Bazares() {
       const res = await fetchAuth(`${API_URL}/bazares/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Erro ao deletar");
+      if (!res.ok) throw new Error(await extrairMensagemErro(res, "Erro ao excluir bazar."));
       await alert({ message: "Bazar deletado com sucesso!", tone: "success" });
       loadBazares();
-    } catch (err: any) {
-      await alert({ message: err.message, tone: "error" });
+    } catch (err: unknown) {
+      await alert({ message: mensagemDeErro(err), tone: "error" });
     }
   }
 
@@ -541,6 +523,8 @@ export default function Bazares() {
                       {canEdit && (
                         <div style={{ display: "flex", gap: "6px" }}>
                           <button
+                            type="button"
+                            aria-label={`Editar ${bazar.nome}`}
                             onClick={() => openEditBazar(bazar)}
                             style={{
                               background: "none",
@@ -555,6 +539,8 @@ export default function Bazares() {
                             Editar
                           </button>
                           <button
+                            type="button"
+                            aria-label={`Excluir ${bazar.nome}`}
                             onClick={() => handleDelete(bazar.id, bazar.nome)}
                             style={{
                               background: "none",
@@ -678,6 +664,9 @@ export default function Bazares() {
         {/* Form Modal */}
         {showForm && canEdit && (
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={editingId ? "Editar Bazar" : "Novo Bazar"}
             style={{
               position: "fixed",
               inset: 0,
@@ -708,10 +697,10 @@ export default function Bazares() {
 
               <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
+                  <label htmlFor="bazar-campo-1" style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
                     Nome do Bazar *
                   </label>
-                  <input
+                  <input id="bazar-campo-1"
                     type="text"
                     required
                     value={formData.nome}
@@ -731,10 +720,10 @@ export default function Bazares() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
-                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
+                    <label htmlFor="bazar-campo-2" style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
                       Data *
                     </label>
-                    <input
+                    <input id="bazar-campo-2"
                       type="date"
                       required
                       value={formData.data}
@@ -751,8 +740,8 @@ export default function Bazares() {
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>Local</label>
-                    <input
+                    <label htmlFor="bazar-campo-3" style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>Local</label>
+                    <input id="bazar-campo-3"
                       type="text"
                       value={formData.local}
                       onChange={(e) => setFormData({ ...formData, local: e.target.value })}
@@ -772,10 +761,10 @@ export default function Bazares() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
-                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
+                    <label htmlFor="bazar-campo-4" style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
                       Horário Início
                     </label>
-                    <input
+                    <input id="bazar-campo-4"
                       type="time"
                       value={formData.horario_inicio}
                       onChange={(e) =>
@@ -793,10 +782,10 @@ export default function Bazares() {
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
+                    <label htmlFor="bazar-campo-5" style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
                       Horário Fim
                     </label>
-                    <input
+                    <input id="bazar-campo-5"
                       type="time"
                       value={formData.horario_fim}
                       onChange={(e) => setFormData({ ...formData, horario_fim: e.target.value })}
@@ -814,10 +803,10 @@ export default function Bazares() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
+                  <label htmlFor="bazar-campo-6" style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
                     Descrição
                   </label>
-                  <textarea
+                  <textarea id="bazar-campo-6"
                     value={formData.descricao}
                     onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                     placeholder="Descrição do evento"
@@ -838,10 +827,10 @@ export default function Bazares() {
 
                 {editingId && (
                   <div>
-                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
+                    <label htmlFor="bazar-campo-7" style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
                       Total Arrecadado
                     </label>
-                    <input
+                    <input id="bazar-campo-7"
                       type="number"
                       step="0.01"
                       value={formData.total_arrecadado}
@@ -919,10 +908,10 @@ export default function Bazares() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
+                  <label htmlFor="bazar-campo-8" style={{ fontSize: "12px", fontWeight: 600, color: "#4a4a42" }}>
                     Observações
                   </label>
-                  <textarea
+                  <textarea id="bazar-campo-8"
                     value={formData.observacoes}
                     onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
                     placeholder="Observações adicionais"

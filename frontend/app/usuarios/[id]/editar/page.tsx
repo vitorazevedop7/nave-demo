@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchAuth } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro } from "@/lib/api";
 import { formatarTimestamp } from "@/lib/date";
 import { useDialog } from "@/components/DialogProvider";
 import Button from "@/components/Button";
@@ -254,8 +254,7 @@ export default function EditarProfissional() {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? `Erro ${res.status}`);
+        throw new Error(await extrairMensagemErro(res, "Erro ao salvar alterações."));
       }
 
       router.push("/profissionais");

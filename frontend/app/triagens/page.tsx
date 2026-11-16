@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAuth } from "@/lib/auth";
 import { StatusBadge } from "@/app/components/StatusBadge";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro } from "@/lib/api";
 import { formatarTimestamp } from "@/lib/date";
 import Button from "@/components/Button";
+import { formatCpf } from "@/lib/formatters";
 
 interface Queixa {
   id: string;
@@ -66,8 +67,8 @@ export default function Triagens() {
 
   useEffect(() => {
     fetchAuth(`${API_URL}/triagens`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await extrairMensagemErro(res, "Não foi possível carregar as triagens."));
         return res.json();
       })
       .then((data: Triagem[]) => {
@@ -290,7 +291,7 @@ export default function Triagens() {
                               {t.beneficiarias?.nome ?? "—"}
                             </p>
                             <p style={{ fontSize: "11px", color: "#5a5a50", marginTop: "1px" }}>
-                              {t.beneficiarias?.cpf ?? "—"}
+                              {formatCpf(t.beneficiarias?.cpf) || "—"}
                             </p>
                           </div>
                         </div>

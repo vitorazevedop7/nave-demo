@@ -13,8 +13,8 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
-        source: "/dashbord",
-        destination: "/",
+        source: "/calendario",
+        destination: "/agenda",
         permanent: false,
       },
     ];

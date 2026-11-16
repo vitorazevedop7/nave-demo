@@ -6,9 +6,7 @@ export interface Usuario {
   perfis: string[];
 }
 
-export function getUsuario(): Usuario | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem("usuario");
+export function parseUsuario(raw: string | null): Usuario | null {
   if (!raw) return null;
   try {
     return JSON.parse(raw) as Usuario;
@@ -17,9 +15,20 @@ export function getUsuario(): Usuario | null {
   }
 }
 
+export function getUsuario(): Usuario | null {
+  if (typeof window === "undefined") return null;
+  return parseUsuario(localStorage.getItem("usuario"));
+}
+
 export function logout(): void {
   localStorage.removeItem("access_token");
   localStorage.removeItem("usuario");
+  // Rascunhos de anamnese contêm dados sensíveis: não podem sobreviver ao logout.
+  for (const storage of [sessionStorage, localStorage]) {
+    Object.keys(storage)
+      .filter((k) => k.startsWith("anamnese_draft_"))
+      .forEach((k) => storage.removeItem(k));
+  }
   window.location.href = "/login";
 }
 

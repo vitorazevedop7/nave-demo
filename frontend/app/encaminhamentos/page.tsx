@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { fetchAuth } from '@/lib/auth';
-import { API_URL } from '@/lib/api';
+import { API_URL, extrairMensagemErro } from '@/lib/api';
 import { formatarTimestamp } from '@/lib/date';
 
 interface Beneficiario {
@@ -41,6 +41,7 @@ const ESPECIALIDADES = [
 import { StatusBadge } from '@/app/components/StatusBadge';
 import AgendamentoFormModal from '@/app/agenda/components/AgendamentoFormModal';
 import Button from '@/components/Button';
+import { formatCpf } from '@/lib/formatters';
 
 // `dataTriagem` e `criadoEm` são timestamps reais — a conversão para o fuso local é correta.
 function formatarData(iso: string): string {
@@ -112,11 +113,9 @@ export default function Encaminhamentos() {
           fetchAuth(`${API_URL}/encaminhamentos`, {
             method: 'POST',
             body: JSON.stringify({ triagemId: selecionada.id, especialidade }),
-          }).then((res) => {
+          }).then(async (res) => {
             if (!res.ok) {
-              return res.json().then((data: { message?: string }) => {
-                throw new Error(data.message ?? `Erro ao encaminhar para ${especialidade}`);
-              });
+              throw new Error(await extrairMensagemErro(res, `Erro ao encaminhar para ${especialidade}.`));
             }
           }),
         ),
@@ -179,6 +178,15 @@ export default function Encaminhamentos() {
                   return (
                     <div
                       key={triagem.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.currentTarget.click();
+                        }
+                      }}
                       onClick={() => {
                         setSelecionada(triagem);
                         setEspecialidadesSelecionadas([]);
@@ -199,7 +207,7 @@ export default function Encaminhamentos() {
                         {triagem.beneficiario.nome}
                       </p>
                       <p style={{ fontSize: '11px', color: '#7a7a70', margin: '0 0 8px' }}>
-                        CPF: {triagem.beneficiario.cpf}
+                        CPF: {formatCpf(triagem.beneficiario.cpf)}
                       </p>
                       {triagem.queixa && (
                         <p
@@ -416,7 +424,7 @@ export default function Encaminhamentos() {
                             {enc.beneficiario.nome}
                           </p>
                           <p style={{ fontSize: '11px', color: '#7a7a70', margin: 0 }}>
-                            CPF: {enc.beneficiario.cpf}
+                            CPF: {formatCpf(enc.beneficiario.cpf)}
                           </p>
                         </td>
                         <td style={{ padding: '14px 20px', fontSize: '13px', color: '#3a3a35' }}>

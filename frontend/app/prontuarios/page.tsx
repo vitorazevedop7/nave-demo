@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useId } from "react";
 import { fetchAuth, getUsuario } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro, mensagemDeErro } from "@/lib/api";
 import { formatarTimestamp, hojeInputDate, paraInputDate, parseDataPura } from "@/lib/date";
 import Button from "@/components/Button";
 import { CarimboRestrito } from "@/components/AcessoProntuario";
 import ProntuarioSomenteLeitura from "@/components/ProntuarioSomenteLeitura";
 import VisibilidadeSelector from "@/components/VisibilidadeSelector";
+import { PDF_SECTIONS, abrirImpressao, gerarHtmlProntuario } from "@/lib/prontuario-pdf";
+import type { FormAcupuntura, FormAnamnese, FormCrianca, FormFisioterapia, ModalType, Morador } from "@/lib/types/prontuario";
 import { VISIBILIDADE_PADRAO, type UsuarioCompartilhavel, type Visibilidade } from "@/lib/visibilidade";
 
 // ─── Interfaces de dados ──────────────────────────────────────────────────────
@@ -75,148 +77,8 @@ type ResultadoBuscaAgendamento =
   | { estado: "RESTRITO"; prontuario: ProntuarioView }
   | { estado: "DISPONIVEL"; prontuario: ProntuarioView };
 
-// ─── Formulários ──────────────────────────────────────────────────────────────
+// ─── Formulários (tipos em lib/types/prontuario.ts) ──────────────────────────
 
-interface FormAnamnese {
-  data_atendimento: string;
-  psicologo_estagiario: string;
-  nome: string; idade: string; sexo: string; nacionalidade: string;
-  civil: string; data_nascimento: string; estado: string; escolaridade: string;
-  profissao: string; desempregado: string; tempo_desemprego: string;
-  residencia: string; telefone: string; ocupacao: string; hobbies: string;
-  queixa_principal: string; queixa_secundaria: string; sintomas: string;
-  psicoterapia_anterior: string; expectativas_objetivos: string;
-  historico_infancia: string; rotina: string; vicios: string; trabalho: string;
-  doencas_transtornos: string; medicamentos: string; uso_drogas: string; ideacao_suicida: string;
-  pais_cuidadores: string; irmaos: string; conjuge: string; filhos: string; lar: string;
-  patologia_pregressa: string; adolescencia: string; relacionamentos_atuais: string;
-  aparencia: string; comportamento: string; atitude_entrevistador: string;
-  orientacao_autoidentificatoria: boolean; orientacao_corporal: boolean;
-  orientacao_temporal: boolean; orientacao_espacial: boolean; orientacao_patologia: boolean;
-  orientacao_observacoes: string; atencao_vigilancia: string; atencao_tenacidade: string;
-  memoria: string; inteligencia: string; sensopercpcao: string;
-  pensamento_acelerado: boolean; pensamento_retardado: boolean; pensamento_fuga: boolean;
-  pensamento_bloqueio: boolean; pensamento_prolixo: boolean; pensamento_repeticao: boolean;
-  conteudo_obsessoes: boolean; conteudo_hipocondrias: boolean;
-  conteudo_fobias: boolean; conteudo_delirios: boolean;
-  expansao_eu_opcoes: string; retracao_eu_opcoes: string; negacao_eu_opcoes: string;
-  linguagem_disturbios: string; afetividade: string; humor_opcoes: string;
-  consciencia_doenca: string; observacao_linguagem_nao_verbal: string; observacoes_finais: string;
-}
-
-interface FormCrianca {
-  data_atendimento: string; profissional: string;
-  nome: string; data_nascimento: string; idade: string; sexo: string; ano_escolar: string; religiao: string;
-  resp_nome: string; resp_parentesco: string; resp_adocao: string; resp_idade: string;
-  resp_escolaridade: string; resp_profissao: string; resp_cpf_rg: string;
-  info_parentesco: string; info_endereco: string; info_contatos: string; info_familiar_atendido: string;
-  disp_segunda: string; disp_terca: string; disp_quarta: string; disp_quinta: string; disp_sexta: string; disp_sabado: string;
-  queixa_origem: string; queixa_encaminhamento: string; queixa_paciente_sabe: string; queixa_paciente_sabe_obs: string; queixa_principal: string;
-  familia_moradores: string; familia_renda: string; familia_cuidador: string; familia_membros_trabalham: string;
-  familia_auxilio: string; familia_pais_provedores: string; familia_casa_tipo: string; familia_valor_aluguel: string;
-  familia_rua_pavimentada: string; familia_agua_energia: string; familia_seguranca: string;
-  familia_cama_propria: string; familia_quarto_sozinho: string; familia_rotina_paciente: string;
-  familia_rotina_familia: string; familia_clima_casa: string; familia_eventos_importantes: string;
-  gest_planejada: string; gest_aceita: string; gest_semanas_descoberta: string; gest_pre_natal: string;
-  gest_pre_natal_onde: string; gest_pre_natal_semanas: string; gest_relacao_familia: string;
-  gest_trabalhou: string; gest_trabalhou_cargo: string; gest_trabalhou_semana: string;
-  gest_hospitalizacoes: string; gest_hospitalizacoes_motivo: string; gest_cirurgias: string; gest_cirurgias_motivo: string;
-  gest_medicamentos: string; gest_medicamentos_quais: string; gest_quedas: string; gest_quedas_periodo: string;
-  gest_drogas: string; gest_drogas_especificar: string; gest_raio_x: string;
-  gest_doencas_mae: string; gest_doencas_mae_especificar: string; gest_semanas_nascimento: string;
-  gest_tipo_parto: string; gest_parto_induzido: string; gest_forceps: string; gest_local_nascimento: string;
-  gest_tempo_bolsa: string; gest_bebe_roxo: string; gest_chorou_nascer: string;
-  gest_cuidados_intensivos: string; gest_cuidados_intensivos_tempo: string; gest_respirou_sozinho: string;
-  marcos_balbucios: string; marcos_palavras: string; marcos_frases: string; marcos_firmou_cabeca: string;
-  marcos_sentou: string; marcos_passos_apoio: string; marcos_caminhou: string; marcos_sorriu: string;
-  marcos_seguiu_olhar: string; marcos_apontou: string; marcos_fralda_dia: string; marcos_fralda_noite: string;
-  dev1_curva: string; dev1_chorava: string; dev1_dormia_muito: string; dev1_dormia_pouco: string;
-  dev1_colicas: string; dev1_vacinacao: string; dev1_ambiente: string;
-  saude_internacoes: string; saude_internacoes_detalhes: string; saude_med_atual: string; saude_med_atual_detalhes: string;
-  saude_med_passada: string; saude_med_passada_detalhes: string; saude_auditivo: string; saude_auditivo_corrigido: string;
-  saude_visual: string; saude_visual_corrigido: string; saude_desmaios: string; saude_desmaios_detalhes: string;
-  saude_convulsoes: string; saude_convulsoes_detalhes: string; saude_meningite: string; saude_encefalite: string;
-  saude_sarampo: string; saude_rubeola: string; saude_caxumba: string; saude_coqueluche: string;
-  saude_pneumonia: string; saude_alergias: string; saude_alergias_quais: string;
-  saude_outras_doencas: string; saude_outras_doencas_quais: string;
-  saude_acompanhamento: string; saude_acompanhamento_detalhes: string;
-  saude_dores: string; saude_dores_quais: string; saude_dores_frequencia: string;
-  saude_diagnosticos: string; saude_diagnosticos_quais: string;
-  social_tem_amigos: string; social_melhor_amigo: string; social_preferencia_idade: string; social_bullying: string;
-  social_busca_interacao: string; social_adapta_brincadeiras: string; social_conversa_grupos: string;
-  social_relacao_pai: string; social_relacao_mae: string; social_relacao_irmaos: string; social_relacao_professor: string;
-  social_reage_negacao: string; social_frequenta_amigos: string; social_familiar_proximo: string;
-  social_interesses: string; social_interesse_especifico: string; social_lida_rotina: string; social_interesses_faixa_etaria: string;
-  auto_dinheiro: string; auto_higiene: string; auto_refeicoes: string; auto_horas: string;
-  auto_tempo: string; auto_vestir: string; auto_escolher_roupas: string; auto_escala: string;
-  sono_pegar: string; sono_despertar: string; sono_movimenta: string; sono_pesadelos: string;
-  sono_ronca: string; sono_ronca_desde: string; sono_ronca_freq: string;
-  sono_enurese: string; sono_enurese_desde: string; sono_enurese_freq: string;
-  sono_tempo: string; sono_rotina: string; sono_rotina_horario: string;
-  alim_amamentou: string; alim_amamentou_idade: string; alim_peso: string; alim_restricao: string;
-  alim_resistencia: string; alim_muita_fome: string; alim_muita_fome_primeiros: string; alim_padrao: string;
-  narr_historias: string; narr_recontar: string; narr_humor: string; narr_piadas: string; narr_escola: string; narr_recados: string;
-  ori_direita_esquerda: string; ori_cima_baixo: string; ori_atras_frente: string; ori_ontem_hoje_amanha: string;
-  ori_manha_tarde_noite: string; ori_dias_semana: string; ori_calendario: string; ori_aniversario: string;
-  ori_ambientes_novos: string; ori_propria_casa: string; ori_escola: string;
-  esc_idade_inicio: string; esc_alfabetizado: string; esc_letras: string; esc_numeros: string; esc_cores: string;
-  esc_reprovacao: string; esc_reprovacao_detalhes: string; esc_dificuldades_gerais: string;
-  esc_dificuldades_especifica: string; esc_dificuldades_quais: string; esc_queixas_comportamento: string;
-  esc_rotina_estudo: string; esc_ambiente_estudo: string; esc_suporte_tarefas: string; esc_horario_dever: string;
-  par_castigos_fisicos: string; par_xingamentos: string; par_conversas: string;
-  par_negociacoes: string; par_elogios: string; par_carinhos: string;
-  gen_dificuldades_escola: string; gen_diagnostico_psiquiatrico: string; gen_sindrome: string;
-  gen_medicacoes_controladas: string; gen_tentativa_suicidio: string;
-  gen_tentativa_suicidio_parentesco: string; gen_morte_suicidio: string;
-  temp_descricao: string; temp_dificuldades: string;
-}
-
-interface FormSimples {
-  data_atendimento: string;
-  nome: string;
-  profissional: string;
-  queixa_principal: string;
-  observacoes_clinicas: string;
-  data_assinatura: string;
-}
-
-interface FormAcupuntura {
-  nome: string;
-  endereco: string;
-  idade: string;
-  data_nascimento: string;
-  telefone: string;
-  profissao: string;
-  estado_civil: string;
-  filho: string;
-  pacote: string;
-  historia: string;
-  ig: string;
-  sono: string;
-  alimentacao: string;
-  lingua: string;
-  data_consulta: string;
-  tecnicas_utilizadas: string;
-}
-
-interface FormFisioterapia {
-  nome: string; idade: string; sexo: string; ocupacao: string;
-  cpf: string; rg: string; contato: string;
-  caso_clinico: string; historico_medico: string;
-  usa_medicamento: string; medicamentos_lista: string;
-  sv_fc: string; sv_fr: string; sv_pa: string;
-  apresentacao_paciente: string; inspecao_palpacao: string;
-  exames_complementares: string; exames_complementares_obs: string;
-  protese_ortese: string; protese_ortese_obs: string;
-  limitacao_movimento: string; limitacao_movimento_obs: string;
-  equilibrio_coordenacao: string; queixa_principal: string;
-  historia_clinica: string; demais_observacoes: string;
-  dor_intensidade: string; objetivo_tratamento: string;
-  recursos_terapeuticos: string; anotacoes_gerais: string;
-  data_assinatura: string; assinatura: string;
-}
-
-type ModalType = "anamnese_adulto" | "anamnese_crianca" | "fisioterapia" | "acupuntura" | "psicologia";
 
 type CheckboxFieldKey =
   | "orientacao_autoidentificatoria" | "orientacao_corporal" | "orientacao_temporal"
@@ -306,11 +168,6 @@ const initialCrianca: FormCrianca = {
   gen_dificuldades_escola: "", gen_diagnostico_psiquiatrico: "", gen_sindrome: "",
   gen_medicacoes_controladas: "", gen_tentativa_suicidio: "", gen_tentativa_suicidio_parentesco: "", gen_morte_suicidio: "",
   temp_descricao: "", temp_dificuldades: "",
-};
-
-const initialSimples: FormSimples = {
-  data_atendimento: "", nome: "", profissional: "",
-  queixa_principal: "", observacoes_clinicas: "", data_assinatura: "",
 };
 
 const initialAcupuntura: FormAcupuntura = {
@@ -603,605 +460,6 @@ const labelEspecialidade: Record<string, string> = {
   PSICOLOGIA: "Ficha Psicologia",
 };
 
-const PDF_SECTIONS: Record<ModalType, Array<{ key: string; label: string }>> = {
-  anamnese_adulto: [
-    { key: "identificacao",    label: "Identificação e Atendimento" },
-    { key: "queixa",           label: "Queixa e Demanda Atual" },
-    { key: "saude_habitos",    label: "Histórico de Saúde e Hábitos" },
-    { key: "historico_pessoal",label: "Histórico Pessoal e Familiar" },
-    { key: "apresentacao",     label: "Exame Psíquico – Apresentação" },
-    { key: "orientacao",       label: "Orientação" },
-    { key: "atencao",          label: "Atenção e Funções Cognitivas" },
-    { key: "pensamento",       label: "Pensamento e Conteúdo" },
-    { key: "linguagem",        label: "Linguagem e Afetividade" },
-    { key: "sintese",          label: "Síntese e Conclusão" },
-  ],
-  anamnese_crianca: [
-    { key: "dados_pessoais",     label: "Dados Pessoais e Responsável" },
-    { key: "informante",         label: "Informante e Disponibilidade" },
-    { key: "queixa",             label: "Queixa" },
-    { key: "familia",            label: "Família e Moradia" },
-    { key: "gestacao",           label: "Gestação" },
-    { key: "parto",              label: "Parto e Nascimento" },
-    { key: "marcos",             label: "Marcos do Desenvolvimento" },
-    { key: "saude",              label: "Histórico de Saúde" },
-    { key: "socializacao",       label: "Socialização" },
-    { key: "autonomia",          label: "Autonomia" },
-    { key: "sono_alim",          label: "Sono e Alimentação" },
-    { key: "narrativas",         label: "Habilidades Narrativas" },
-    { key: "orientacao_escolar", label: "Orientação e Vida Escolar" },
-    { key: "parental",           label: "Estilo Parental" },
-    { key: "genetico",           label: "Histórico Genético Familiar" },
-    { key: "temperamento",       label: "Temperamento" },
-  ],
-  fisioterapia: [
-    { key: "identificacao", label: "Identificação" },
-    { key: "historico",     label: "Histórico Clínico" },
-    { key: "sinais",        label: "Sinais Vitais" },
-    { key: "exame",         label: "Exame Físico" },
-    { key: "dor",           label: "Avaliação de Dor e Diagnóstico" },
-    { key: "tratamento",    label: "Plano de Tratamento" },
-    { key: "assinatura",    label: "Assinatura" },
-  ],
-  acupuntura: [
-    { key: "dados",        label: "Dados do Paciente" },
-    { key: "anamnese_acu", label: "Anamnese" },
-    { key: "atendimento",  label: "Atendimento" },
-  ],
-  psicologia: [
-    { key: "atendimento_psico", label: "Atendimento Psicológico" },
-  ],
-};
-
-// ─── Geração de HTML para impressão ──────────────────────────────────────────
-
-function pdfFieldKey(label: string): string {
-  return label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-}
-
-function pdfCampo(label: string, value: string | boolean | undefined, full = false): string {
-  if (value === undefined || value === null || value === "") return "";
-  const v = typeof value === "boolean" ? (value ? "Sim" : "Não") : String(value);
-  if (!v.trim()) return "";
-  const fk = pdfFieldKey(label);
-  return `<div class="field${full ? " full" : ""}" data-field="${fk}"><label>${label}</label><div class="value">${v.replace(/\n/g, "<br>")}</div></div>`;
-}
-
-function pdfSecao(titulo: string, conteudo: string, key = ""): string {
-  if (!conteudo.replace(/<[^>]*>/g, "").trim()) return "";
-  const attr = key ? ` data-key="${key}"` : "";
-  return `<div class="section"${attr}><h2>${titulo}</h2><div class="grid">${conteudo}</div></div>`;
-}
-
-function pdfBadges(value: string): string {
-  if (!value) return "";
-  return value.split(" | ").filter(Boolean).map(v => `<span class="badge">${v.trim()}</span>`).join("");
-}
-
-function pdfChk(label: string, value: boolean | string): string {
-  return `<span class="chk">${(value === true || value === "Sim") ? "&#9745;" : "&#9744;"} ${label}</span>`;
-}
-
-function pdfBase(titulo: string, subtitulo: string, body: string, selectedKeys?: string[], selectedFields?: Record<string, string[]>): string {
-  return `<!DOCTYPE html><html lang="pt-BR"><head>
-<meta charset="UTF-8">
-<title>${titulo}</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:Arial,Helvetica,sans-serif; font-size:11px; color:#1a1a1a; padding:18mm 16mm; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #E07A6E; padding-bottom:12px; margin-bottom:20px; }
-  .header h1 { font-size:17px; font-weight:700; color:#2B1F14; }
-  .header p { font-size:11px; color:#6B5E54; margin-top:3px; }
-  .header-right { text-align:right; font-size:10px; color:#9B8E84; line-height:1.6; }
-  h2 { font-size:10px; font-weight:700; color:#E07A6E; border-bottom:1px solid #e8e0d8; padding-bottom:3px; margin:16px 0 10px; text-transform:uppercase; letter-spacing:.5px; page-break-after:avoid; break-after:avoid; }
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; }
-  .field { page-break-inside:avoid; break-inside:avoid; }
-  .field label { font-size:9px; font-weight:700; color:#9B8E84; text-transform:uppercase; letter-spacing:.3px; display:block; margin-bottom:2px; }
-  .field .value { font-size:11px; color:#2B1F14; border-bottom:.5px solid #e0dbd2; padding:2px 0 4px; min-height:18px; line-height:1.5; }
-  .field.full { grid-column:1/-1; page-break-inside:avoid; break-inside:avoid; }
-  .badge { display:inline-block; background:#f0ece4; color:#6B5E54; padding:2px 7px; border-radius:4px; font-size:10px; margin:2px 2px 2px 0; font-weight:600; }
-  .chk-group { display:flex; flex-wrap:wrap; gap:10px; padding:4px 0; page-break-inside:avoid; break-inside:avoid; }
-  .chk { font-size:11px; color:#2B1F14; }
-  .footer { border-top:1px solid #e0dbd2; margin-top:28px; padding-top:12px; display:flex; justify-content:space-between; font-size:10px; color:#9B8E84; page-break-inside:avoid; break-inside:avoid; }
-  @media print { body { padding:0; } @page { margin:15mm 12mm; size:A4; } }
-</style>
-</head><body>
-<div class="header">
-  <div><h1>${titulo}</h1><p>${subtitulo}</p></div>
-  <div class="header-right">Data: ${new Date().toLocaleDateString("pt-BR")}<br>Sistema Nave</div>
-</div>
-${body}
-<div class="footer">
-  <span>Gerado em ${new Date().toLocaleString("pt-BR")}</span>
-  <span>Sistema Nave &mdash; Prontuário Eletrônico</span>
-</div>
-<script>
-  var _sel = ${selectedKeys ? JSON.stringify(selectedKeys) : "null"};
-  var _flds = ${selectedFields ? JSON.stringify(selectedFields) : "null"};
-  if (_sel) {
-    document.querySelectorAll("[data-key]").forEach(function(sEl) {
-      var sk = sEl.getAttribute("data-key");
-      if (_sel.indexOf(sk) === -1) { sEl.style.display = "none"; return; }
-      if (_flds && _flds[sk]) {
-        sEl.querySelectorAll("[data-field]").forEach(function(fEl) {
-          if (_flds[sk].indexOf(fEl.getAttribute("data-field")) === -1)
-            fEl.style.display = "none";
-        });
-      }
-    });
-  }
-  window.onload = function() { window.print(); };
-</script>
-</body></html>`;
-}
-
-function gerarHtmlAnamnese(f: FormAnamnese, nome: string, profissional: string, selectedKeys?: string[], selectedFields?: Record<string, string[]>): string {
-  const body = [
-    pdfSecao("Identificação e Atendimento", [
-      pdfCampo("Data do Atendimento", f.data_atendimento),
-      pdfCampo("Psicólogo / Estagiário", profissional || f.psicologo_estagiario),
-      pdfCampo("Nome", f.nome, true),
-      pdfCampo("Data de Nascimento", f.data_nascimento),
-      pdfCampo("Idade", f.idade),
-      pdfCampo("Sexo", f.sexo),
-      pdfCampo("Nacionalidade", f.nacionalidade),
-      pdfCampo("Estado Civil", f.civil),
-      pdfCampo("Telefone", f.telefone),
-      pdfCampo("Residência", f.residencia, true),
-      pdfCampo("Escolaridade", f.escolaridade),
-      pdfCampo("Ocupação Atual", f.ocupacao),
-      pdfCampo("Profissão (Formação)", f.profissao),
-      pdfCampo("Situação Empregatícia", f.desempregado),
-      f.desempregado === "Sim" ? pdfCampo("Tempo Desemprego", f.tempo_desemprego) : "",
-      pdfCampo("Hobbies e Lazer", f.hobbies),
-    ].join(""), "identificacao"),
-    pdfSecao("Queixa e Demanda Atual", [
-      pdfCampo("Queixa Principal", f.queixa_principal, true),
-      pdfCampo("Queixa Secundária", f.queixa_secundaria, true),
-      pdfCampo("Sintomas", f.sintomas, true),
-      pdfCampo("Expectativas e Objetivos", f.expectativas_objetivos, true),
-      pdfCampo("Psicoterapia Anterior", f.psicoterapia_anterior, true),
-    ].join(""), "queixa"),
-    pdfSecao("Histórico de Saúde e Hábitos", [
-      pdfCampo("Doenças / Transtornos Psiquiátricos", f.doencas_transtornos, true),
-      pdfCampo("Patologia Pregressa", f.patologia_pregressa, true),
-      pdfCampo("Uso de Medicamentos", f.medicamentos, true),
-      pdfCampo("Uso de Drogas / Substâncias", f.uso_drogas, true),
-      pdfCampo("Ideação Suicida", f.ideacao_suicida, true),
-    ].join(""), "saude_habitos"),
-    pdfSecao("Histórico Pessoal e Familiar", [
-      pdfCampo("Infância", f.historico_infancia),
-      pdfCampo("Adolescência", f.adolescencia),
-      pdfCampo("Rotina Diária", f.rotina, true),
-      pdfCampo("Dinâmica de Trabalho", f.trabalho, true),
-      pdfCampo("Vícios / Hábitos", f.vicios),
-      pdfCampo("Composição do Lar", f.lar),
-      pdfCampo("Pais / Cuidadores", f.pais_cuidadores),
-      pdfCampo("Irmãos", f.irmaos),
-      pdfCampo("Cônjuge", f.conjuge),
-      pdfCampo("Filhos", f.filhos),
-      pdfCampo("Relacionamentos Atuais", f.relacionamentos_atuais, true),
-    ].join(""), "historico_pessoal"),
-    pdfSecao("Exame Psíquico — Apresentação", [
-      pdfCampo("Aparência", f.aparencia, true),
-      pdfCampo("Comportamento", f.comportamento, true),
-      pdfCampo("Atitude com o Entrevistador", f.atitude_entrevistador),
-      pdfCampo("Sensopercepção", f.sensopercpcao),
-    ].join(""), "apresentacao"),
-    `<div class="section" data-key="orientacao"><h2>Orientação</h2><div class="grid">
-      <div class="field full" data-field="orientacao_grupo"><label>O paciente encontra-se orientado de forma:</label>
-        <div class="chk-group">
-          ${pdfChk("Autoidentificatória", f.orientacao_autoidentificatoria)}
-          ${pdfChk("Corporal", f.orientacao_corporal)}
-          ${pdfChk("Temporal", f.orientacao_temporal)}
-          ${pdfChk("Espacial", f.orientacao_espacial)}
-          ${pdfChk("Em relação à patologia", f.orientacao_patologia)}
-        </div>
-      </div>
-      ${pdfCampo("Observações sobre Orientação", f.orientacao_observacoes, true)}
-    </div></div>`,
-    pdfSecao("Atenção e Funções Cognitivas", [
-      pdfCampo("Atenção — Vigilância", f.atencao_vigilancia),
-      pdfCampo("Atenção — Tenacidade", f.atencao_tenacidade),
-      pdfCampo("Memória", f.memoria),
-      pdfCampo("Inteligência", f.inteligencia),
-    ].join(""), "atencao"),
-    `<div class="section" data-key="pensamento"><h2>Pensamento e Conteúdo</h2><div class="grid">
-      <div class="field" data-field="curso_pensamento"><label>Curso do Pensamento</label>
-        <div class="chk-group">
-          ${pdfChk("Acelerado", f.pensamento_acelerado)}
-          ${pdfChk("Retardado", f.pensamento_retardado)}
-          ${pdfChk("Fuga de Ideias", f.pensamento_fuga)}
-          ${pdfChk("Bloqueio", f.pensamento_bloqueio)}
-          ${pdfChk("Prolixo", f.pensamento_prolixo)}
-          ${pdfChk("Repetição", f.pensamento_repeticao)}
-        </div>
-      </div>
-      <div class="field" data-field="conteudo_predominante"><label>Conteúdo Predominante</label>
-        <div class="chk-group">
-          ${pdfChk("Obsessões", f.conteudo_obsessoes)}
-          ${pdfChk("Hipocondrias", f.conteudo_hipocondrias)}
-          ${pdfChk("Fobias", f.conteudo_fobias)}
-          ${pdfChk("Delírios", f.conteudo_delirios)}
-        </div>
-      </div>
-      ${f.expansao_eu_opcoes ? `<div class="field" data-field="expansao_eu"><label>Expansão do Eu</label><div class="value">${pdfBadges(f.expansao_eu_opcoes)}</div></div>` : ""}
-      ${f.retracao_eu_opcoes ? `<div class="field" data-field="retracao_eu"><label>Retração do Eu</label><div class="value">${pdfBadges(f.retracao_eu_opcoes)}</div></div>` : ""}
-      ${f.negacao_eu_opcoes ? `<div class="field full" data-field="negacao_eu"><label>Negação do Eu</label><div class="value">${pdfBadges(f.negacao_eu_opcoes)}</div></div>` : ""}
-    </div></div>`,
-    pdfSecao("Linguagem e Afetividade", [
-      f.linguagem_disturbios ? `<div class="field full"><label>Distúrbios de Linguagem</label><div class="value">${pdfBadges(f.linguagem_disturbios)}</div></div>` : "",
-      pdfCampo("Afetividade", f.afetividade, true),
-      pdfCampo("Humor", f.humor_opcoes),
-      pdfCampo("Consciência da Doença", f.consciencia_doenca),
-    ].join(""), "linguagem"),
-    pdfSecao("Síntese e Conclusão", [
-      pdfCampo("Observação / Linguagem Não Verbal", f.observacao_linguagem_nao_verbal, true),
-      pdfCampo("Observações Finais e Conduta", f.observacoes_finais, true),
-    ].join(""), "sintese"),
-  ].join("");
-  return pdfBase("Anamnese Psicológica — Adulto", `${nome} | Profissional: ${profissional || f.psicologo_estagiario}`, body, selectedKeys, selectedFields);
-}
-
-function gerarHtmlCrianca(f: FormCrianca, moradores: Array<{nome:string;parentesco:string;idade:string}>, nome: string, selectedKeys?: string[], selectedFields?: Record<string, string[]>): string {
-  const moradoresHtml = moradores.length
-    ? `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px"><thead><tr style="background:#f5f0e8"><th style="padding:4px 8px;text-align:left">Nome</th><th style="padding:4px 8px;text-align:left">Parentesco</th><th style="padding:4px 8px;text-align:left">Idade</th></tr></thead><tbody>${moradores.map(m=>`<tr><td style="padding:3px 8px;border-bottom:.5px solid #e0dbd2">${m.nome}</td><td style="padding:3px 8px;border-bottom:.5px solid #e0dbd2">${m.parentesco}</td><td style="padding:3px 8px;border-bottom:.5px solid #e0dbd2">${m.idade}</td></tr>`).join("")}</tbody></table>`
-    : "<em style='color:#9B8E84'>Não informado</em>";
-
-  const body = [
-    pdfSecao("Dados Pessoais e Responsável", [
-      pdfCampo("Data do Atendimento", f.data_atendimento),
-      pdfCampo("Profissional", f.profissional),
-      pdfCampo("Nome", f.nome, true),
-      pdfCampo("Data de Nascimento", f.data_nascimento),
-      pdfCampo("Idade", f.idade),
-      pdfCampo("Sexo", f.sexo),
-      pdfCampo("Ano Escolar", f.ano_escolar),
-      pdfCampo("Religião", f.religiao),
-      pdfCampo("Responsável Legal", f.resp_nome, true),
-      pdfCampo("Parentesco", f.resp_parentesco),
-      pdfCampo("Adoção?", f.resp_adocao),
-      pdfCampo("Idade do Responsável", f.resp_idade),
-      pdfCampo("Escolaridade do Responsável", f.resp_escolaridade),
-      pdfCampo("Profissão do Responsável", f.resp_profissao),
-      pdfCampo("CPF / RG", f.resp_cpf_rg),
-    ].join(""), "dados_pessoais"),
-    pdfSecao("Informante e Disponibilidade", [
-      pdfCampo("Parentesco do informante", f.info_parentesco),
-      pdfCampo("Endereço", f.info_endereco),
-      pdfCampo("Contatos", f.info_contatos),
-      pdfCampo("Familiar atendido?", f.info_familiar_atendido),
-      `<div class="field full" data-field="horarios_disponiveis"><label>Horários Disponíveis</label><div class="value">
-        ${[["Segunda",f.disp_segunda],["Terça",f.disp_terca],["Quarta",f.disp_quarta],["Quinta",f.disp_quinta],["Sexta",f.disp_sexta],["Sábado",f.disp_sabado]].filter(([,v])=>v).map(([d,v])=>`<strong>${d}:</strong> ${v}`).join(" &bull; ") || "Não informado"}
-      </div></div>`,
-    ].join(""), "informante"),
-    pdfSecao("Queixa", [
-      pdfCampo("Origem da procura", f.queixa_origem, true),
-      pdfCampo("Encaminhamento", f.queixa_encaminhamento, true),
-      pdfCampo("Paciente sabe do atendimento?", f.queixa_paciente_sabe),
-      pdfCampo("Observação", f.queixa_paciente_sabe_obs),
-      pdfCampo("Queixa Principal", f.queixa_principal, true),
-    ].join(""), "queixa"),
-    `<div class="section" data-key="familia"><h2>Família e Moradia</h2><div class="grid">
-      <div class="field full" data-field="moradores_residencia"><label>Moradores da residência</label><div class="value">${moradoresHtml}</div></div>
-      ${pdfCampo("Renda familiar", f.familia_renda)}
-      ${pdfCampo("Possui cuidador/babá?", f.familia_cuidador)}
-      ${pdfCampo("Membros que trabalham", f.familia_membros_trabalham)}
-      ${pdfCampo("Auxílio governamental?", f.familia_auxilio)}
-      ${pdfCampo("Pais são provedores?", f.familia_pais_provedores)}
-      ${pdfCampo("Tipo de casa", f.familia_casa_tipo)}
-      ${pdfCampo("Valor aluguel/financiamento", f.familia_valor_aluguel)}
-      ${pdfCampo("Rua pavimentada?", f.familia_rua_pavimentada)}
-      ${pdfCampo("Água encanada e energia?", f.familia_agua_energia)}
-      ${pdfCampo("Sensação de segurança no bairro", f.familia_seguranca, true)}
-      ${pdfCampo("Dorme na própria cama?", f.familia_cama_propria)}
-      ${pdfCampo("Dorme sozinho no quarto?", f.familia_quarto_sozinho)}
-      ${pdfCampo("Rotina do paciente", f.familia_rotina_paciente, true)}
-      ${pdfCampo("Rotina da família", f.familia_rotina_familia, true)}
-      ${pdfCampo("Clima geral da casa", f.familia_clima_casa, true)}
-      ${pdfCampo("Eventos importantes na família", f.familia_eventos_importantes, true)}
-    </div></div>`,
-    pdfSecao("Gestação", [
-      pdfCampo("Gestação planejada?", f.gest_planejada),
-      pdfCampo("Gestação aceita?", f.gest_aceita),
-      pdfCampo("Descoberta com quantas semanas?", f.gest_semanas_descoberta),
-      pdfCampo("Realizou pré-natal?", f.gest_pre_natal),
-      pdfCampo("Onde realizou o pré-natal?", f.gest_pre_natal_onde),
-      pdfCampo("A partir de quantas semanas?", f.gest_pre_natal_semanas),
-      pdfCampo("Relação gestante–família", f.gest_relacao_familia, true),
-      pdfCampo("Trabalhou na gestação?", f.gest_trabalhou),
-      pdfCampo("Cargo", f.gest_trabalhou_cargo),
-      pdfCampo("Trabalhou até a semana", f.gest_trabalhou_semana),
-      pdfCampo("Hospitalizações?", f.gest_hospitalizacoes),
-      pdfCampo("Motivo hospitalizações", f.gest_hospitalizacoes_motivo),
-      pdfCampo("Cirurgias?", f.gest_cirurgias),
-      pdfCampo("Motivo cirurgias", f.gest_cirurgias_motivo),
-      pdfCampo("Medicamentos?", f.gest_medicamentos),
-      pdfCampo("Quais medicamentos?", f.gest_medicamentos_quais),
-      pdfCampo("Quedas?", f.gest_quedas),
-      pdfCampo("Período da queda", f.gest_quedas_periodo),
-      pdfCampo("Uso de álcool/cigarro/drogas?", f.gest_drogas),
-      pdfCampo("Especificar", f.gest_drogas_especificar),
-      pdfCampo("Raio-X na gestação?", f.gest_raio_x),
-      pdfCampo("Doenças na mãe?", f.gest_doencas_mae),
-      pdfCampo("Quais doenças?", f.gest_doencas_mae_especificar),
-    ].join(""), "gestacao"),
-    pdfSecao("Parto e Nascimento", [
-      pdfCampo("Semanas gestacionais no nascimento", f.gest_semanas_nascimento),
-      pdfCampo("Tipo de parto", f.gest_tipo_parto),
-      pdfCampo("Parto induzido ou natural?", f.gest_parto_induzido),
-      pdfCampo("Uso de fórceps?", f.gest_forceps),
-      pdfCampo("Local de nascimento", f.gest_local_nascimento),
-      pdfCampo("Tempo bolsa → nascimento", f.gest_tempo_bolsa),
-      pdfCampo("Bebê nasceu roxinho?", f.gest_bebe_roxo),
-      pdfCampo("Chorou ao nascer?", f.gest_chorou_nascer),
-      pdfCampo("Precisou de cuidados intensivos?", f.gest_cuidados_intensivos),
-      pdfCampo("Tempo em cuidados intensivos", f.gest_cuidados_intensivos_tempo),
-      pdfCampo("Respirou sozinho?", f.gest_respirou_sozinho),
-    ].join(""), "parto"),
-    pdfSecao("Marcos do Desenvolvimento", [
-      pdfCampo("Primeiros balbucios", f.marcos_balbucios),
-      pdfCampo("Primeiras palavras", f.marcos_palavras),
-      pdfCampo("Primeiras frases completas", f.marcos_frases),
-      pdfCampo("Firmou a cabeça", f.marcos_firmou_cabeca),
-      pdfCampo("Sentou sozinho", f.marcos_sentou),
-      pdfCampo("Primeiros passos (com apoio)", f.marcos_passos_apoio),
-      pdfCampo("Caminhou sem apoio", f.marcos_caminhou),
-      pdfCampo("Sorriu para pessoas", f.marcos_sorriu),
-      pdfCampo("Seguiu o olhar de adultos", f.marcos_seguiu_olhar),
-      pdfCampo("Iniciou apontar objetos", f.marcos_apontou),
-      pdfCampo("Cessou fralda — dia", f.marcos_fralda_dia),
-      pdfCampo("Cessou fralda — noite", f.marcos_fralda_noite),
-      pdfCampo("Acompanhou curva de crescimento?", f.dev1_curva),
-      pdfCampo("Chorava muito?", f.dev1_chorava),
-      pdfCampo("Dormia muito?", f.dev1_dormia_muito),
-      pdfCampo("Dormia pouco?", f.dev1_dormia_pouco),
-      pdfCampo("Muitas cólicas?", f.dev1_colicas),
-      pdfCampo("Vacinação completa?", f.dev1_vacinacao),
-      pdfCampo("Ambiente familiar nos primeiros anos", f.dev1_ambiente, true),
-    ].join(""), "marcos"),
-    pdfSecao("Histórico de Saúde", [
-      pdfCampo("Internações?", f.saude_internacoes),
-      pdfCampo("Detalhes internações", f.saude_internacoes_detalhes),
-      pdfCampo("Medicação atual?", f.saude_med_atual),
-      pdfCampo("Quais medicações atuais?", f.saude_med_atual_detalhes),
-      pdfCampo("Medicação passada?", f.saude_med_passada),
-      pdfCampo("Quais medicações passadas?", f.saude_med_passada_detalhes),
-      pdfCampo("Problemas auditivos?", f.saude_auditivo),
-      pdfCampo("Auditivo corrigido?", f.saude_auditivo_corrigido),
-      pdfCampo("Problemas visuais?", f.saude_visual),
-      pdfCampo("Visual corrigido?", f.saude_visual_corrigido),
-      pdfCampo("Desmaios?", f.saude_desmaios),
-      pdfCampo("Detalhes desmaios", f.saude_desmaios_detalhes),
-      pdfCampo("Convulsões?", f.saude_convulsoes),
-      pdfCampo("Detalhes convulsões", f.saude_convulsoes_detalhes),
-      [["Meningite",f.saude_meningite],["Encefalite",f.saude_encefalite],["Sarampo",f.saude_sarampo],["Rubéola",f.saude_rubeola],["Caxumba",f.saude_caxumba],["Coqueluche",f.saude_coqueluche],["Pneumonia",f.saude_pneumonia]].filter(([,v])=>v==="Sim").length
-        ? `<div class="field full" data-field="historico_doencas"><label>Histórico de doenças</label><div class="value">${[["Meningite",f.saude_meningite],["Encefalite",f.saude_encefalite],["Sarampo",f.saude_sarampo],["Rubéola",f.saude_rubeola],["Caxumba",f.saude_caxumba],["Coqueluche",f.saude_coqueluche],["Pneumonia",f.saude_pneumonia]].filter(([,v])=>v==="Sim").map(([d])=>`<span class="badge">${d}</span>`).join("")}</div></div>`
-        : "",
-      pdfCampo("Alergias?", f.saude_alergias),
-      pdfCampo("Quais alergias?", f.saude_alergias_quais),
-      pdfCampo("Outras doenças?", f.saude_outras_doencas),
-      pdfCampo("Quais outras doenças?", f.saude_outras_doencas_quais),
-      pdfCampo("Acompanhamento profissional?", f.saude_acompanhamento),
-      pdfCampo("Detalhes acompanhamento", f.saude_acompanhamento_detalhes, true),
-      pdfCampo("Dores físicas?", f.saude_dores),
-      pdfCampo("Quais dores?", f.saude_dores_quais),
-      pdfCampo("Frequência das dores", f.saude_dores_frequencia),
-      pdfCampo("Diagnósticos prévios?", f.saude_diagnosticos),
-      pdfCampo("Quais diagnósticos?", f.saude_diagnosticos_quais, true),
-    ].join(""), "saude"),
-    pdfSecao("Socialização", [
-      pdfCampo("Tem amigos?", f.social_tem_amigos),
-      pdfCampo("Tem melhor amigo(a)?", f.social_melhor_amigo),
-      pdfCampo("Preferência de interação por idade", f.social_preferencia_idade),
-      pdfCampo("Histórico de bullying?", f.social_bullying),
-      pdfCampo("Busca interação em ambientes novos?", f.social_busca_interacao, true),
-      pdfCampo("Adapta-se a brincadeiras?", f.social_adapta_brincadeiras),
-      pdfCampo("Mantém conversas em grupos?", f.social_conversa_grupos),
-      pdfCampo("Relação com o pai", f.social_relacao_pai, true),
-      pdfCampo("Relação com a mãe", f.social_relacao_mae, true),
-      pdfCampo("Relação com irmãos", f.social_relacao_irmaos, true),
-      pdfCampo("Relação com professor(a)", f.social_relacao_professor, true),
-      pdfCampo("Reage à negação de desejos", f.social_reage_negacao, true),
-      pdfCampo("Frequenta / recebe amigos?", f.social_frequenta_amigos),
-      pdfCampo("Familiar próximo", f.social_familiar_proximo, true),
-      pdfCampo("Interesses", f.social_interesses, true),
-      pdfCampo("Interesse específico / dificuldade de mudar foco?", f.social_interesse_especifico, true),
-      pdfCampo("Lida com mudanças na rotina", f.social_lida_rotina, true),
-      pdfCampo("Interesses adequados à faixa etária?", f.social_interesses_faixa_etaria),
-    ].join(""), "socializacao"),
-    pdfSecao("Autonomia", [
-      pdfCampo("Maneja dinheiro?", f.auto_dinheiro, true),
-      pdfCampo("Higiene pessoal sozinho?", f.auto_higiene, true),
-      pdfCampo("Refeições simples sozinho?", f.auto_refeicoes),
-      pdfCampo("Olha as horas?", f.auto_horas),
-      pdfCampo("Gerencia o próprio tempo?", f.auto_tempo),
-      pdfCampo("Veste-se sozinho?", f.auto_vestir),
-      pdfCampo("Escolhe roupas sozinho?", f.auto_escolher_roupas),
-      pdfCampo("Escala de dependência (0–3)", f.auto_escala),
-    ].join(""), "autonomia"),
-    pdfSecao("Sono e Alimentação", [
-      pdfCampo("Dificuldade para pegar no sono?", f.sono_pegar),
-      pdfCampo("Dificuldade ao despertar?", f.sono_despertar),
-      pdfCampo("Movimenta muito dormindo?", f.sono_movimenta),
-      pdfCampo("Pesadelos?", f.sono_pesadelos),
-      pdfCampo("Ronca?", f.sono_ronca),
-      pdfCampo("Ronca desde quando?", f.sono_ronca_desde),
-      pdfCampo("Frequência do ronco", f.sono_ronca_freq),
-      pdfCampo("Enurese?", f.sono_enurese),
-      pdfCampo("Enurese desde quando?", f.sono_enurese_desde),
-      pdfCampo("Frequência enurese", f.sono_enurese_freq),
-      pdfCampo("Tempo médio de sono", f.sono_tempo),
-      pdfCampo("Rotina de sono?", f.sono_rotina),
-      pdfCampo("Horário de dormir", f.sono_rotina_horario),
-      pdfCampo("Amamentou no peito?", f.alim_amamentou),
-      pdfCampo("Amamentou até qual idade?", f.alim_amamentou_idade),
-      pdfCampo("Peso compatível?", f.alim_peso),
-      pdfCampo("Restrição alérgica?", f.alim_restricao),
-      pdfCampo("Resistência a alimentos?", f.alim_resistencia),
-      pdfCampo("Tem muita fome?", f.alim_muita_fome),
-      pdfCampo("Tinha muita fome nos primeiros anos?", f.alim_muita_fome_primeiros),
-      pdfCampo("Padrão alimentar", f.alim_padrao, true),
-    ].join(""), "sono_alim"),
-    pdfSecao("Habilidades Narrativas", [
-      pdfCampo("Interesse por histórias?", f.narr_historias),
-      pdfCampo("Reconta histórias de forma coesa?", f.narr_recontar),
-      pdfCampo("Entende humor / piadas?", f.narr_humor),
-      pdfCampo("Reconta piadas?", f.narr_piadas),
-      pdfCampo("Explica situações da escola?", f.narr_escola),
-      pdfCampo("Repassa recados?", f.narr_recados),
-    ].join(""), "narrativas"),
-    pdfSecao("Orientação Tempo/Espaço e Vida Escolar", [
-      `<div class="field full" data-field="conceitos_orientacao"><label>Conceitos que a criança compreende</label><div class="value chk-group">
-        ${pdfChk("Direita/Esquerda", f.ori_direita_esquerda)}
-        ${pdfChk("Cima/Baixo", f.ori_cima_baixo)}
-        ${pdfChk("Atrás/Frente", f.ori_atras_frente)}
-        ${pdfChk("Ontem/Hoje/Amanhã", f.ori_ontem_hoje_amanha)}
-        ${pdfChk("Manhã/Tarde/Noite", f.ori_manha_tarde_noite)}
-        ${pdfChk("Dias da semana", f.ori_dias_semana)}
-        ${pdfChk("Calendário", f.ori_calendario)}
-        ${pdfChk("Data do aniversário", f.ori_aniversario)}
-        ${pdfChk("Ambientes novos", f.ori_ambientes_novos)}
-        ${pdfChk("Locomove-se em casa", f.ori_propria_casa)}
-        ${pdfChk("Locomove-se na escola", f.ori_escola)}
-      </div></div>`,
-      pdfCampo("Iniciou escola com qual idade?", f.esc_idade_inicio),
-      pdfCampo("É alfabetizado?", f.esc_alfabetizado),
-      pdfCampo("Reconhece letras?", f.esc_letras),
-      pdfCampo("Reconhece números?", f.esc_numeros),
-      pdfCampo("Reconhece cores?", f.esc_cores),
-      pdfCampo("Histórico de reprovação?", f.esc_reprovacao),
-      pdfCampo("Detalhes reprovação", f.esc_reprovacao_detalhes),
-      pdfCampo("Dificuldades generalizadas?", f.esc_dificuldades_gerais),
-      pdfCampo("Dificuldade em disciplina específica?", f.esc_dificuldades_especifica),
-      pdfCampo("Qual disciplina?", f.esc_dificuldades_quais),
-      pdfCampo("Queixas de comportamento escolar", f.esc_queixas_comportamento, true),
-      pdfCampo("Rotina de estudo?", f.esc_rotina_estudo),
-      pdfCampo("Horário do dever", f.esc_horario_dever),
-      pdfCampo("Ambiente de estudo", f.esc_ambiente_estudo, true),
-      pdfCampo("Suporte nas tarefas escolares", f.esc_suporte_tarefas, true),
-    ].join(""), "orientacao_escolar"),
-    pdfSecao("Estilo Parental", [
-      pdfCampo("Castigos físicos?", f.par_castigos_fisicos, true),
-      pdfCampo("Xingamentos / ameaças?", f.par_xingamentos, true),
-      pdfCampo("Conversas sobre comportamento?", f.par_conversas, true),
-      pdfCampo("Negociações?", f.par_negociacoes, true),
-      pdfCampo("Elogios?", f.par_elogios, true),
-      pdfCampo("Troca de carinhos físicos?", f.par_carinhos, true),
-    ].join(""), "parental"),
-    pdfSecao("Histórico Genético Familiar", [
-      pdfCampo("Familiar com dificuldades escolares?", f.gen_dificuldades_escola, true),
-      pdfCampo("Familiar com diagnóstico psiquiátrico?", f.gen_diagnostico_psiquiatrico, true),
-      pdfCampo("Familiar com síndrome genética?", f.gen_sindrome, true),
-      pdfCampo("Familiar com medicações controladas?", f.gen_medicacoes_controladas, true),
-      pdfCampo("Tentativa de suicídio na família?", f.gen_tentativa_suicidio),
-      pdfCampo("Parentesco (tentativa)", f.gen_tentativa_suicidio_parentesco),
-      pdfCampo("Morte por suicídio na família?", f.gen_morte_suicidio),
-    ].join(""), "genetico"),
-    pdfSecao("Temperamento", [
-      pdfCampo("Descrição do funcionamento da criança", f.temp_descricao, true),
-      pdfCampo("Maiores dificuldades na interação", f.temp_dificuldades, true),
-    ].join(""), "temperamento"),
-  ].join("");
-  return pdfBase("Anamnese Psicológica — Criança", `${nome} | Profissional: ${f.profissional}`, body, selectedKeys, selectedFields);
-}
-
-function gerarHtmlFisio(f: FormFisioterapia, nome: string, selectedKeys?: string[], selectedFields?: Record<string, string[]>): string {
-  const body = [
-    pdfSecao("Identificação", [
-      pdfCampo("Nome", f.nome, true),
-      pdfCampo("Idade", f.idade),
-      pdfCampo("Sexo", f.sexo),
-      pdfCampo("Ocupação", f.ocupacao),
-      pdfCampo("CPF", f.cpf),
-      pdfCampo("RG", f.rg),
-      pdfCampo("Contato", f.contato),
-    ].join(""), "identificacao"),
-    pdfSecao("Histórico Clínico", [
-      pdfCampo("Caso Clínico", f.caso_clinico, true),
-      pdfCampo("Histórico Médico", f.historico_medico, true),
-      pdfCampo("Usa Medicamento?", f.usa_medicamento),
-      pdfCampo("Quais Medicamentos?", f.medicamentos_lista),
-    ].join(""), "historico"),
-    pdfSecao("Sinais Vitais", [
-      pdfCampo("FC (bpm)", f.sv_fc),
-      pdfCampo("FR (rpm)", f.sv_fr),
-      pdfCampo("PA (mmHg)", f.sv_pa),
-    ].join(""), "sinais"),
-    pdfSecao("Exame Físico", [
-      pdfCampo("Apresentação do Paciente", f.apresentacao_paciente, true),
-      pdfCampo("Inspeção / Palpação", f.inspecao_palpacao, true),
-      pdfCampo("Exames Complementares?", f.exames_complementares),
-      pdfCampo("Observações (exames)", f.exames_complementares_obs),
-      pdfCampo("Prótese / Órtese?", f.protese_ortese),
-      pdfCampo("Qual prótese/órtese?", f.protese_ortese_obs),
-      pdfCampo("Limitação de Movimento?", f.limitacao_movimento),
-      pdfCampo("Qual limitação?", f.limitacao_movimento_obs),
-      pdfCampo("Equilíbrio / Coordenação", f.equilibrio_coordenacao, true),
-    ].join(""), "exame"),
-    pdfSecao("Avaliação de Dor e Diagnóstico", [
-      `<div class="field full" data-field="intensidade_dor"><label>Intensidade da Dor (0–10)</label><div class="value">
-        <span style="font-size:24px;font-weight:700;color:${parseInt(f.dor_intensidade)<=3?"#3D7845":parseInt(f.dor_intensidade)<=7?"#eab308":"#ef4444"}">${f.dor_intensidade || "0"}</span>
-        <span style="font-size:11px;color:#9B8E84;margin-left:8px">${parseInt(f.dor_intensidade)<=3?"Leve":parseInt(f.dor_intensidade)<=7?"Moderada":"Intensa"}</span>
-      </div></div>`,
-      pdfCampo("Queixa Principal", f.queixa_principal, true),
-      pdfCampo("História Clínica", f.historia_clinica, true),
-      pdfCampo("Demais Observações", f.demais_observacoes, true),
-    ].join(""), "dor"),
-    pdfSecao("Plano de Tratamento", [
-      pdfCampo("Objetivo do Tratamento", f.objetivo_tratamento, true),
-      pdfCampo("Recursos Terapêuticos", f.recursos_terapeuticos, true),
-      pdfCampo("Anotações Gerais", f.anotacoes_gerais, true),
-    ].join(""), "tratamento"),
-    pdfSecao("Assinatura", [
-      pdfCampo("Data", f.data_assinatura),
-      pdfCampo("Profissional", f.assinatura),
-    ].join(""), "assinatura"),
-  ].join("");
-  return pdfBase("Ficha de Fisioterapia", `${nome}`, body, selectedKeys, selectedFields);
-}
-
-function gerarHtmlAcupuntura(f: FormAcupuntura, nome: string, profissional: string, selectedKeys?: string[], selectedFields?: Record<string, string[]>): string {
-  const body = [
-    pdfSecao("Dados do Paciente", [
-      pdfCampo("Nome", f.nome, true),
-      pdfCampo("Endereço", f.endereco, true),
-      pdfCampo("Idade", f.idade),
-      pdfCampo("Data de Nascimento", f.data_nascimento),
-      pdfCampo("Telefone", f.telefone),
-      pdfCampo("Profissão", f.profissao),
-      pdfCampo("Estado Civil", f.estado_civil),
-      pdfCampo("Filho(s)", f.filho),
-      pdfCampo("Pacote", f.pacote),
-      pdfCampo("Data da Consulta", f.data_consulta),
-    ].join(""), "dados"),
-    pdfSecao("Anamnese", [
-      pdfCampo("História / Queixa Principal", f.historia, true),
-      pdfCampo("IG", f.ig),
-      pdfCampo("Sono", f.sono),
-      pdfCampo("Alimentação", f.alimentacao),
-      pdfCampo("Língua", f.lingua),
-    ].join(""), "anamnese_acu"),
-    pdfSecao("Atendimento", [
-      pdfCampo("Técnicas Utilizadas", f.tecnicas_utilizadas, true),
-      pdfCampo("Profissional", profissional),
-    ].join(""), "atendimento"),
-  ].join("");
-  return pdfBase("Ficha de Acupuntura", `${nome}`, body, selectedKeys, selectedFields);
-}
-
-function gerarHtmlPsicologia(f: FormSimples, nome: string, selectedKeys?: string[], selectedFields?: Record<string, string[]>): string {
-  const body = pdfSecao("Atendimento Psicológico", [
-    pdfCampo("Data do Atendimento", f.data_atendimento),
-    pdfCampo("Profissional", f.profissional),
-    pdfCampo("Nome", f.nome, true),
-    pdfCampo("Queixa Principal", f.queixa_principal, true),
-    pdfCampo("Observações Clínicas", f.observacoes_clinicas, true),
-    pdfCampo("Data de Assinatura", f.data_assinatura),
-  ].join(""), "atendimento_psico");
-  return pdfBase("Ficha de Psicologia", `${nome}`, body, selectedKeys, selectedFields);
-}
-
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function Prontuarios() {
@@ -1239,10 +497,9 @@ export default function Prontuarios() {
   // Anamnese criança
   const [formCrianca, setFormCrianca] = useState<FormCrianca>(initialCrianca);
   const [criancaStep, setCriancaStep] = useState(1);
-  const [moradores, setMoradores] = useState<Array<{nome: string; parentesco: string; idade: string}>>([]);
+  const [moradores, setMoradores] = useState<Morador[]>([]);
 
   // Acupuntura / Psicologia
-  const [formSimples, setFormSimples] = useState<FormSimples>(initialSimples);
   const [formAcupuntura, setFormAcupuntura] = useState<FormAcupuntura>(initialAcupuntura);
 
   // Fisioterapia
@@ -1268,7 +525,7 @@ export default function Prontuarios() {
   // Draft para anamnese adulto
   useEffect(() => {
     if (modalType === "anamnese_adulto" && agendamentoSelecionado) {
-      const draft = localStorage.getItem(`anamnese_draft_${agendamentoSelecionado.id}`);
+      const draft = sessionStorage.getItem(`anamnese_draft_${agendamentoSelecionado.id}`);
       if (draft) {
         try {
           const draftData = JSON.parse(draft) as Partial<FormAnamnese>;
@@ -1284,8 +541,9 @@ export default function Prontuarios() {
             });
             return merged;
           });
-        } catch (e) {
-          console.error("Erro ao recuperar draft:", e);
+        } catch {
+          // Rascunho corrompido: descarta para não reaparecer a cada abertura.
+          sessionStorage.removeItem(`anamnese_draft_${agendamentoSelecionado.id}`);
         }
       }
     }
@@ -1307,10 +565,11 @@ export default function Prontuarios() {
       const res = await fetchAuth(
         `${API_URL}/agendamentos/meus?apenas_com_beneficiaria=true`,
       );
+      if (!res.ok) throw new Error(await extrairMensagemErro(res, "Não foi possível carregar os agendamentos."));
       const data = await res.json();
       if (Array.isArray(data)) setAgendamentos(data);
-    } catch (err) {
-      console.error("Erro na carga de agendamentos:", err);
+    } catch (err: unknown) {
+      setErroConsultaAgendamento(mensagemDeErro(err, "Não foi possível carregar os agendamentos."));
     } finally {
       setLoading(false);
     }
@@ -1395,7 +654,6 @@ export default function Prontuarios() {
     setResultadoAgendamento(null);
     setFormAnamnese(initialAnamnese);
     setFormCrianca(initialCrianca);
-    setFormSimples(initialSimples);
     setFormAcupuntura(initialAcupuntura);
     setFormFisio(initialFisio);
   };
@@ -1583,7 +841,7 @@ export default function Prontuarios() {
 
   const saveDraft = (form: FormAnamnese) => {
     if (agendamentoSelecionado)
-      localStorage.setItem(`anamnese_draft_${agendamentoSelecionado.id}`, JSON.stringify(form));
+      sessionStorage.setItem(`anamnese_draft_${agendamentoSelecionado.id}`, JSON.stringify(form));
   };
 
   const handleAnamnese = (field: keyof FormAnamnese, value: string | boolean) => {
@@ -1600,13 +858,11 @@ export default function Prontuarios() {
   const handleCrianca = (field: keyof FormCrianca, value: string) =>
     setFormCrianca((prev) => ({ ...prev, [field]: value }));
 
-  const handleMoradores = (next: Array<{nome: string; parentesco: string; idade: string}>) => {
+  const handleMoradores = (next: Morador[]) => {
     setMoradores(next);
     setFormCrianca((prev) => ({ ...prev, familia_moradores: JSON.stringify(next) }));
   };
 
-  const handleSimples = (field: keyof FormSimples, value: string) =>
-    setFormSimples((prev) => ({ ...prev, [field]: value }));
 
   const handleAcupuntura = (field: keyof FormAcupuntura, value: string) =>
     setFormAcupuntura((prev) => ({ ...prev, [field]: value }));
@@ -1665,9 +921,6 @@ export default function Prontuarios() {
           },
         };
         descricao = formAcupuntura.historia;
-      } else if (modalType === "psicologia") {
-        tipoData = { psicologia: formSimples };
-        descricao = formSimples.queixa_principal;
       }
 
       let res: Response;
@@ -1683,7 +936,6 @@ export default function Prontuarios() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             beneficiaria_id: agendamentoSelecionado.beneficiaria_id,
-            profissional_id: usuarioLogado.id,
             agendamento_id: agendamentoSelecionado.id,
             descricao,
             visibilidade,
@@ -1695,16 +947,14 @@ export default function Prontuarios() {
 
       if (res.ok) {
         if (modalType === "anamnese_adulto")
-          localStorage.removeItem(`anamnese_draft_${agendamentoSelecionado.id}`);
+          sessionStorage.removeItem(`anamnese_draft_${agendamentoSelecionado.id}`);
         fecharModal();
         carregarAgendamentos();
       } else {
-        const err = await res.json();
-        setErrors({ submit: err.message || "Erro ao salvar prontuário" });
+        setErrors({ submit: await extrairMensagemErro(res, "Erro ao salvar prontuário.") });
       }
-    } catch (err) {
-      console.error(err);
-      setErrors({ submit: "Erro ao conectar com servidor" });
+    } catch {
+      setErrors({ submit: "Erro ao conectar com o servidor." });
     } finally {
       setSubmitting(false);
     }
@@ -1715,17 +965,19 @@ export default function Prontuarios() {
   // com cara de documento completo.
   const podeGerarPdf = !temRegistroRestrito;
 
+  const dadosPdf = {
+    anamneseAdulto: formAnamnese,
+    anamneseCrianca: formCrianca,
+    moradores,
+    fisioterapia: formFisio,
+    acupuntura: formAcupuntura,
+  };
+
   const abrirSeletorPdf = () => {
     if (!modalType || !agendamentoSelecionado || !podeGerarPdf) return;
     const nome = agendamentoSelecionado.beneficiarias?.nome || "Paciente";
 
-    let html = "";
-    if (modalType === "anamnese_adulto") html = gerarHtmlAnamnese(formAnamnese, nome, usuarioLogado?.nome || "");
-    else if (modalType === "anamnese_crianca") html = gerarHtmlCrianca(formCrianca, moradores, nome);
-    else if (modalType === "fisioterapia") html = gerarHtmlFisio(formFisio, nome);
-    else if (modalType === "acupuntura") html = gerarHtmlAcupuntura(formAcupuntura, nome, usuarioLogado?.nome || "");
-    else if (modalType === "psicologia") html = gerarHtmlPsicologia(formSimples, nome);
-    if (!html) return;
+    const html = gerarHtmlProntuario(modalType, dadosPdf, nome, usuarioLogado?.nome || "");
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
@@ -1760,15 +1012,10 @@ export default function Prontuarios() {
     const flds: Record<string, string[]> = {};
     Object.entries(selectedFields).forEach(([k, v]) => { flds[k] = [...v]; });
 
-    let html = "";
-    if (modalType === "anamnese_adulto") html = gerarHtmlAnamnese(formAnamnese, nome, usuarioLogado?.nome || "", sel, flds);
-    else if (modalType === "anamnese_crianca") html = gerarHtmlCrianca(formCrianca, moradores, nome, sel, flds);
-    else if (modalType === "fisioterapia") html = gerarHtmlFisio(formFisio, nome, sel, flds);
-    else if (modalType === "acupuntura") html = gerarHtmlAcupuntura(formAcupuntura, nome, usuarioLogado?.nome || "", sel, flds);
-    else if (modalType === "psicologia") html = gerarHtmlPsicologia(formSimples, nome, sel, flds);
+    if (!modalType) return;
+    const html = gerarHtmlProntuario(modalType, dadosPdf, nome, usuarioLogado?.nome || "", sel, flds);
     if (!html) return;
-    const win = window.open("", "_blank", "width=900,height=700");
-    if (win) { win.document.write(html); win.document.close(); }
+    abrirImpressao(html);
   };
 
   const formatarDataHora = (iso: string) =>
@@ -1862,7 +1109,7 @@ export default function Prontuarios() {
         {aba === "meus" ? (
         <div style={{ background: "#fff", borderRadius: "16px", border: "0.5px solid #d2c3b2", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
           {erroConsultaAgendamento && (
-            <div style={{ padding: "12px 20px", background: "#FDE8E4", color: "#A9473C", fontSize: "12px" }}>
+            <div role="alert" style={{ padding: "12px 20px", background: "#FDE8E4", color: "#A9473C", fontSize: "12px" }}>
               {erroConsultaAgendamento}
             </div>
           )}
@@ -1931,7 +1178,7 @@ export default function Prontuarios() {
         ) : (
           <div style={{ background: "#fff", borderRadius: "16px", border: "0.5px solid #d2c3b2", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             {erroCompartilhados && (
-              <div style={{ padding: "12px 20px", background: "#FDE8E4", color: "#A9473C", fontSize: "12px" }}>
+              <div role="alert" style={{ padding: "12px 20px", background: "#FDE8E4", color: "#A9473C", fontSize: "12px" }}>
                 {erroCompartilhados}
               </div>
             )}
@@ -2316,7 +1563,7 @@ export default function Prontuarios() {
                         <label style={{ fontSize: "10px", fontWeight: 700, color: "#9B8E84", display: "block", marginBottom: "3px" }}>Idade</label>
                         <input value={m.idade} onChange={(e) => { const n = [...moradores]; n[i] = { ...n[i], idade: e.target.value }; handleMoradores(n); }} style={{ width: "100%", padding: "8px 10px", border: "0.5px solid #d6d0c4", borderRadius: "6px", fontSize: "12px", fontFamily: "inherit" }} />
                       </div>
-                      <button onClick={() => handleMoradores(moradores.filter((_, j) => j !== i))} style={{ background: "#fef2f2", color: "#DC2626", border: "1px solid #fca5a5", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", cursor: "pointer", fontWeight: 700 }}>✕</button>
+                      <button type="button" aria-label="Remover morador" onClick={() => handleMoradores(moradores.filter((_, j) => j !== i))} style={{ background: "#fef2f2", color: "#DC2626", border: "1px solid #fca5a5", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", cursor: "pointer", fontWeight: 700 }}>✕</button>
                     </div>
                   ))}
                   <button onClick={() => handleMoradores([...moradores, { nome: "", parentesco: "", idade: "" }])} style={{ background: "#f0f5f0", color: "#4a7a4e", border: "1px solid #c5dbc6", borderRadius: "6px", padding: "7px 14px", fontSize: "12px", cursor: "pointer", fontWeight: 600, marginTop: "4px" }}>
@@ -2512,9 +1759,9 @@ export default function Prontuarios() {
                     ].map(({ v, label }) => {
                       const sel = formCrianca.auto_escala === v;
                       return (
-                        <div key={v} onClick={() => handleCrianca("auto_escala", v)} style={{ flex: 1, textAlign: "center", padding: "10px 8px", cursor: "pointer", borderRadius: "8px", fontSize: "12px", fontWeight: 600, background: sel ? "#E07A6E" : "#f0ece4", color: sel ? "#fff" : "#2B1F14", border: sel ? "none" : "0.5px solid #d6d0c4", transition: "all 0.15s" }}>
+                        <button type="button" key={v} aria-pressed={sel} onClick={() => handleCrianca("auto_escala", v)} style={{ flex: 1, fontFamily: "inherit", textAlign: "center", padding: "10px 8px", cursor: "pointer", borderRadius: "8px", fontSize: "12px", fontWeight: 600, background: sel ? "#E07A6E" : "#f0ece4", color: sel ? "#fff" : "#2B1F14", border: sel ? "none" : "0.5px solid #d6d0c4", transition: "all 0.15s" }}>
                           {label}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -2796,25 +2043,6 @@ export default function Prontuarios() {
         </Modal>
       )}
 
-      {/* ── Modal Psicologia ──────────────────────────────────────────────────── */}
-      {modalType === "psicologia" && agendamentoSelecionado && (
-        <Modal titulo={`Ficha Psicologia — ${agendamentoSelecionado.beneficiarias?.nome}`} subtitulo="Atendimento clínico" onClose={fecharModal}>
-          {avisoProntuarioAusente}
-          <ModalBody errors={errors}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              <Field label="Data do Atendimento" type="date" value={formSimples.data_atendimento} onChange={(v) => handleSimples("data_atendimento", v)} />
-              <Field label="Profissional" value={formSimples.profissional} onChange={(v) => handleSimples("profissional", v)} disabled />
-              <Field label="Nome" value={formSimples.nome} onChange={(v) => handleSimples("nome", v)} gridSpan={2} />
-              <Field label="Queixa Principal" value={formSimples.queixa_principal} onChange={(v) => handleSimples("queixa_principal", v)} textarea gridSpan={2} />
-              <Field label="Observações Clínicas" value={formSimples.observacoes_clinicas} onChange={(v) => handleSimples("observacoes_clinicas", v)} textarea gridSpan={2} />
-              <Field label="Data Assinatura" type="date" value={formSimples.data_assinatura} onChange={(v) => handleSimples("data_assinatura", v)} />
-              <div style={{ gridColumn: "1 / -1" }}>{blocoVisibilidade}</div>
-            </div>
-          </ModalBody>
-          <ModalFooter onSave={salvarProntuario} onPrint={podeGerarPdf ? abrirSeletorPdf : undefined} submitting={submitting} isUpdate={!!existingProntuarioId} />
-        </Modal>
-      )}
-
       {/* ── Seletor de seções para PDF ────────────────────────────────────────── */}
       {showPdfSelector && modalType && (
         <PdfSelectorModal
@@ -2904,6 +2132,13 @@ function PdfSelectorModal({
   onCancel: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
   const allSelected = sections.length > 0 && sections.every((s) => {
     if (!selectedSections.has(s.key)) return false;
     const flds = selectedFields[s.key] || new Set<string>();
@@ -2920,7 +2155,7 @@ function PdfSelectorModal({
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }} onClick={onCancel}>
+    <div role="dialog" aria-modal="true" aria-label="Selecionar conteúdo do PDF" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }} onClick={onCancel}>
       <div style={{ background: "#fff", borderRadius: "16px", width: "90%", maxWidth: "520px", maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 12px 40px rgba(0,0,0,0.22)" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "20px 24px", borderBottom: "0.5px solid #e0dbd2" }}>
           <h2 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#2B1F14" }}>Selecionar conteúdo para impressão</h2>
@@ -3010,15 +2245,23 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function Modal({ titulo, subtitulo, onClose, children }: {
   titulo: string; subtitulo: string; onClose: () => void; children: React.ReactNode;
 }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }} onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label={titulo} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }} onClick={onClose}>
       <div style={{ background: "#fff", borderRadius: "16px", width: "95%", maxWidth: "700px", maxHeight: "90vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.2)", position: "relative" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "24px", borderBottom: "0.5px solid #e0dbd2", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
           <div>
             <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#2B1F14" }}>{titulo}</h2>
             <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#9B8E84" }}>{subtitulo}</p>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "24px", cursor: "pointer", color: "#9B8E84", lineHeight: 1 }}>×</button>
+          <button type="button" aria-label="Fechar" onClick={onClose} style={{ background: "none", border: "none", fontSize: "24px", cursor: "pointer", color: "#9B8E84", lineHeight: 1 }}>×</button>
         </div>
         {children}
       </div>
@@ -3035,7 +2278,7 @@ function ProgressBar({ total, current, descricao }: { total: number; current: nu
         ))}
       </div>
       <p style={{ fontSize: "11px", color: "#9B8E84", margin: "8px 0 0 0", fontWeight: 600 }}>
-        Step {current} de {total} — {descricao}
+        Etapa {current} de {total} — {descricao}
       </p>
     </div>
   );
@@ -3101,6 +2344,9 @@ function Field({ label, value, onChange, type = "text", error, disabled = false,
   const border = error ? "1px solid #c33" : "0.5px solid #d6d0c4";
   const base: React.CSSProperties = { width: "100%", padding: "10px 12px", border, borderRadius: "8px", fontSize: "12px", fontFamily: "inherit", opacity: disabled ? 0.6 : 1 };
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const campoId = useId();
+  const erroId = `${campoId}-erro`;
+  const ariaCampo = { id: campoId, "aria-invalid": error ? true : undefined, "aria-describedby": error ? erroId : undefined };
 
   useEffect(() => {
     if (!textarea || !textareaRef.current) return;
@@ -3118,9 +2364,10 @@ function Field({ label, value, onChange, type = "text", error, disabled = false,
 
   return (
     <div style={{ gridColumn: gridSpan > 1 ? "1 / -1" : undefined }}>
-      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#2B1F14", marginBottom: "6px" }}>{label}</label>
+      <label htmlFor={campoId} style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#2B1F14", marginBottom: "6px" }}>{label}</label>
       {textarea ? (
         <textarea
+          {...ariaCampo}
           ref={textareaRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -3129,13 +2376,13 @@ function Field({ label, value, onChange, type = "text", error, disabled = false,
           style={{ ...base, minHeight: "60px", resize: "none", overflow: "hidden" }}
         />
       ) : options ? (
-        <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} style={{ ...base, background: disabled ? "#f7f7f7" : "#fff" }}>
+        <select {...ariaCampo} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} style={{ ...base, background: disabled ? "#f7f7f7" : "#fff" }}>
           {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       ) : (
-        <input type={type} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} style={base} />
+        <input {...ariaCampo} type={type} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} style={base} />
       )}
-      {error && <p style={{ fontSize: "11px", color: "#c33", margin: "4px 0 0 0" }}>{error}</p>}
+      {error && <p id={erroId} role="alert" style={{ fontSize: "11px", color: "#c33", margin: "4px 0 0 0" }}>{error}</p>}
     </div>
   );
 }

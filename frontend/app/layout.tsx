@@ -21,8 +21,18 @@ const comfortaa = Comfortaa({
 });
 
 export const metadata: Metadata = {
-  title: "NAVE - Sistema de Triagem",
-  description: "Núcleo Assistencial Valerio da Esperança - Sistema de Triagem e Encaminhamento",
+  title: "NAVE — Sistema de Gestão",
+  description:
+    "Núcleo Assistencial Veleiro da Esperança — gestão de triagens, encaminhamentos, agenda, prontuários e doações.",
+  icons: { icon: "/favicon.ico" },
+  openGraph: {
+    title: "NAVE — Sistema de Gestão",
+    description:
+      "Núcleo Assistencial Veleiro da Esperança — gestão de triagens, encaminhamentos, agenda, prontuários e doações.",
+    siteName: "NAVE",
+    locale: "pt_BR",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

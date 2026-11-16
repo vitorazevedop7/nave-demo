@@ -3,8 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
-import { getUsuario, logout, type Usuario } from "@/lib/auth";
+import { useMemo, useState, useSyncExternalStore } from "react";
+import { logout, parseUsuario, type Usuario } from "@/lib/auth";
 
 // `perfis` lista os perfis com acesso à rota. Itens sem `perfis` são
 // visíveis para qualquer usuário autenticado. Deve espelhar o ROUTE_PERFIS
@@ -67,15 +67,22 @@ function formatPerfis(perfis: string[] | undefined): string {
   return perfis.map(formatPerfil).join(", ");
 }
 
+function subscribeUsuario(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
+function lerUsuarioRaw(): string | null {
+  return localStorage.getItem("usuario");
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  // Lê o usuário do localStorage sem divergir entre servidor (null) e cliente.
+  const usuarioRaw = useSyncExternalStore(subscribeUsuario, lerUsuarioRaw, () => null);
+  const usuario = useMemo<Usuario | null>(() => parseUsuario(usuarioRaw), [usuarioRaw]);
   const perfisLabel = formatPerfis(usuario?.perfis);
-
-  useEffect(() => {
-    setUsuario(getUsuario());
-  }, []);
 
   return (
     <aside
@@ -114,7 +121,7 @@ export default function Sidebar() {
               alt="NAVE"
               width={30}
               height={30}
-              style={{ objectFit: "contain", flexShrink: 0 }}
+              style={{ width: 30, height: 30, objectFit: "contain", flexShrink: 0 }}
             />
             {!collapsed && (
               <div style={{ lineHeight: 1.15 }}>
@@ -127,7 +134,9 @@ export default function Sidebar() {
           {/* Toggle button */}
           {!collapsed && (
             <button
+              type="button"
               onClick={() => setCollapsed(true)}
+              aria-label="Recolher menu"
               title="Recolher menu"
               style={{
                 background: "none",
@@ -152,7 +161,9 @@ export default function Sidebar() {
 
           {collapsed && (
             <button
+              type="button"
               onClick={() => setCollapsed(false)}
+              aria-label="Expandir menu"
               title="Expandir menu"
               style={{
                 background: "none",
@@ -308,7 +319,9 @@ export default function Sidebar() {
         </div>
 
         <button
+          type="button"
           onClick={logout}
+          aria-label="Sair"
           title="Sair"
           style={{
             display: "flex",

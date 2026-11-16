@@ -4,7 +4,8 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchAuth } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro } from "@/lib/api";
+import { buscarBeneficiarias } from "@/lib/beneficiarias";
 import Button from "@/components/Button";
 
 // ─── Estilos reutilizáveis ───────────────────────────────────────────────────
@@ -113,9 +114,7 @@ export default function NovaBeneficiaria() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (termo.length < 2) { setSugestoesResponsavel([]); return; }
     debounceRef.current = setTimeout(async () => {
-      const res = await fetchAuth(`${API_URL}/beneficiarias?tipo=ADULTA&busca=${encodeURIComponent(termo)}`);
-      const data = await res.json();
-      setSugestoesResponsavel(data.map((b: any) => ({ id: b.id, nome: b.nome })));
+      setSugestoesResponsavel(await buscarBeneficiarias(termo, "ADULTA"));
     }, 300);
   }
 
@@ -158,8 +157,7 @@ export default function NovaBeneficiaria() {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? `Erro ${res.status}`);
+        throw new Error(await extrairMensagemErro(res, "Erro ao cadastrar beneficiária."));
       }
 
       router.push("/beneficiarios");
@@ -319,6 +317,7 @@ export default function NovaBeneficiaria() {
                     </span>
                     <button
                       type="button"
+                      aria-label="Remover seleção"
                       onClick={() => { setResponsavelSelecionada(null); setBuscaResponsavel(''); }}
                       style={{
                         background: "none", border: "none", cursor: "pointer",

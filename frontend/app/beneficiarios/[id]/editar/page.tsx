@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { fetchAuth } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+import { API_URL, extrairMensagemErro } from "@/lib/api";
+import { buscarBeneficiarias, paraDependentes } from "@/lib/beneficiarias";
 import { paraInputDate } from "@/lib/date";
 import Button from "@/components/Button";
 
@@ -117,8 +118,8 @@ export default function EditarBeneficiaria() {
 
   useEffect(() => {
     fetchAuth(`${API_URL}/beneficiarias/${id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Erro ${res.status}`);
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await extrairMensagemErro(res, "Não foi possível carregar a beneficiária."));
         return res.json();
       })
       .then(async (data) => {
@@ -145,7 +146,7 @@ export default function EditarBeneficiaria() {
         if (data.tipo === 'ADULTA') {
           const resDep = await fetchAuth(`${API_URL}/beneficiarias?responsavel_id=${id}`);
           const deps = await resDep.json();
-          setDependentes(Array.isArray(deps) ? deps.map((d: any) => ({ id: d.id, nome: d.nome, tipo: d.tipo ?? 'ADULTA' })) : []);
+          setDependentes(paraDependentes(deps));
         }
         setLoadingData(false);
       })
@@ -159,9 +160,7 @@ export default function EditarBeneficiaria() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (termo.length < 2) { setSugestoesResponsavel([]); return; }
     debounceRef.current = setTimeout(async () => {
-      const res = await fetchAuth(`${API_URL}/beneficiarias?tipo=ADULTA&busca=${encodeURIComponent(termo)}`);
-      const data = await res.json();
-      setSugestoesResponsavel(data.map((b: any) => ({ id: b.id, nome: b.nome })));
+      setSugestoesResponsavel(await buscarBeneficiarias(termo, "ADULTA"));
     }, 300);
   }
 
@@ -204,8 +203,7 @@ export default function EditarBeneficiaria() {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? `Erro ${res.status}`);
+        throw new Error(await extrairMensagemErro(res, "Erro ao salvar alterações."));
       }
 
       router.push("/beneficiarios");
@@ -384,6 +382,7 @@ export default function EditarBeneficiaria() {
                     </span>
                     <button
                       type="button"
+                      aria-label="Remover seleção"
                       onClick={() => { setResponsavelSelecionada(null); setBuscaResponsavel(''); }}
                       style={{
                         background: "none", border: "none", cursor: "pointer",
