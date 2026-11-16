@@ -7,5 +7,4 @@
 **/.next/
 **/coverage/
 **/*.tsbuildinfo
-**/.claude/
 .vercel/

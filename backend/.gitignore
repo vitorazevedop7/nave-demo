@@ -54,6 +54,3 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
-
-# Claude Code local config (permissões específicas da máquina)
-.claude/settings.local.json

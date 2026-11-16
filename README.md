@@ -1,142 +1,182 @@
 # Sistema NAVE
 
-> **Repositório de portfólio publicado com autorização da organização cliente.** Esta versão contém exclusivamente dados de demonstração fictícios e não inclui dados reais de pessoas atendidas, profissionais, doadores ou terceiros.
+[![CI](https://github.com/vitorazevedop7/nave-demo/actions/workflows/ci.yml/badge.svg)](https://github.com/vitorazevedop7/nave-demo/actions/workflows/ci.yml)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-6A9E6E.svg)](LICENSE)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 
-O Sistema NAVE centraliza a gestão interna de uma organização do terceiro setor que operava seus processos em papel e WhatsApp. A aplicação reúne cadastros, triagens, encaminhamentos, agendas, prontuários com acesso controlado, doações, bazares e painéis operacionais em um único fluxo autenticado.
+**Português** · [English](README.en.md)
 
-![Painel da gestora, com atendimentos do dia, encaminhamentos por especialidade e agenda em tempo real](docs/screenshots/readme-dashboard.png)
+Sistema de gestão do **Núcleo Assistencial Veleiro da Esperança (NAVE)**, uma ONG de Belo Horizonte que atende mulheres, crianças e adolescentes em situação de violência familiar. A ONG trabalhava com fichas em papel e grupos de WhatsApp. Hoje agenda, triagem, encaminhamentos, prontuários e doações ficam num único sistema, com controle de acesso pensado para dados clínicos sensíveis.
 
-## Visão rápida
+> **Repositório de portfólio publicado com autorização da ONG.** O código é o mesmo do sistema em uso, mas todos os dados são fictícios: nenhuma pessoa atendida, profissional, doador ou terceiro real aparece aqui.
+
+<p align="center">
+  <a href="docs/demo/nave-demo.mp4">
+    <img src="docs/demo/nave-demo.gif" alt="Demonstração do Sistema NAVE: login da gestora, triagem, encaminhamento, agendamento e prontuário com visibilidade controlada" width="900">
+  </a>
+  <br>
+  <sub>▶ Clique para ver o vídeo completo (MP4, 1080p)</sub>
+</p>
+
+## Destaques
+
+- **Em uso real.** Começou como projeto acadêmico e virou o sistema que a ONG usa no dia a dia (veja [Histórico](#histórico)).
+- **Acesso a prontuários por perfil × especialidade.** Cada laudo tem um de quatro níveis de visibilidade, com compartilhamento nominal. Quando o acesso é negado, a API devolve só os metadados do registro, nunca o conteúdo.
+- **Segurança verificada em teste.** Os testes e2e rodam contra um PostgreSQL real e cobrem a matriz de visibilidade, os guards de perfil, a revogação de acesso de usuários desativados e a validação de entrada.
+- **Pronto para avaliar.** `docker compose up --build` sobe banco, API e interface já com dados de demonstração. A documentação da API fica em `/docs` (OpenAPI).
+- **CI completo.** O GitHub Actions roda lint, checagem de tipos, testes unitários, migrations, testes e2e, builds e um smoke test da stack Docker a cada push.
+
+## Rodando em um comando
+
+Requisito: Docker com Docker Compose.
+
+~~~bash
+git clone https://github.com/vitorazevedop7/nave-demo.git
+cd nave-demo
+docker compose up --build
+~~~
+
+| O quê | Onde |
+| --- | --- |
+| Interface | <http://localhost:3000> |
+| API | <http://localhost:3001> |
+| Documentação da API (Swagger) | <http://localhost:3001/docs> |
+
+Todos os usuários de demonstração usam a senha **NaveDemo@2026**. Ela é pública e existe só para a demo local.
+
+| Perfil | E-mail |
+| --- | --- |
+| Gestora | `gestora.demo@example.com` |
+| Profissional (Psicologia) | `profissional.psi.demo@example.com` |
+| Triadora | `triadora.demo@example.com` |
+
+O seed também cria profissionais fictícios de Assistência Social e Fisioterapia, para popular a agenda, os encaminhamentos e as regras por especialidade.
+
+## Arquitetura
 
 ~~~text
-Next.js (frontend) --HTTP/JSON--> NestJS (API) --Prisma--> PostgreSQL
-          |                           |
-          +---- sessão JWT/RBAC ------+
+┌──────────────────────┐   HTTP/JSON + JWT   ┌──────────────────────────┐   Prisma   ┌────────────┐
+│ Next.js 16 / React 19│ ──────────────────▶ │ NestJS 11                │ ─────────▶ │ PostgreSQL │
+│ App Router, Tailwind │                     │ Guards globais (JWT,     │            │ 18 tabelas │
+│ Recharts             │ ◀────────────────── │ perfis), DTOs validados, │ ◀───────── │ migrations │
+└──────────────────────┘                     │ filtro de erros Prisma   │            └────────────┘
+                                             └──────────────────────────┘
 ~~~
 
 | Camada | Tecnologia |
 | --- | --- |
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4 e Recharts |
-| Backend | NestJS 11, TypeScript, Passport e JWT |
-| Dados | PostgreSQL, Prisma ORM e adapter pg |
-| Validação e testes | class-validator, Jest e Supertest |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4, Recharts |
+| Backend | NestJS 11, Passport + JWT, class-validator, Swagger/OpenAPI, Helmet, Throttler |
+| Dados | PostgreSQL, Prisma 7 com adapter `pg`, migrations versionadas |
+| Qualidade | Jest, Supertest, ESLint (type-checked), Prettier, GitHub Actions, Docker |
 
-O frontend consome uma API REST. O backend concentra autenticação, autorização e regras de negócio; o Prisma mapeia o domínio e persiste os dados no PostgreSQL.
+A segurança fica no backend. O frontend esconde do menu o que o perfil não pode usar, mas isso é conveniência, não proteção: toda rota é protegida por um guard global de autenticação, e as rotas restritas também passam pelo `RolesGuard`. A cada requisição o token é conferido contra o banco, então um usuário desativado perde o acesso na hora, e não só quando o token expira.
 
-## Domínio e modelo de dados
+## Domínio
 
-O fluxo principal conecta beneficiárias a triagens e queixas, gera encaminhamentos por especialidade, organiza agendamentos com profissionais e permite registrar prontuários. Os módulos administrativos cobrem usuários e perfis, doadores, doações, campanhas e bazares.
+O fluxo principal acompanha o caminho de uma beneficiária na ONG: **cadastro → triagem (queixa) → encaminhamento por especialidade → agendamento → atendimento → prontuário**. Os módulos administrativos cobrem usuários e perfis, doadores, doações, campanhas e bazares.
 
 ![Diagrama entidade-relacionamento do Sistema NAVE](docs/der.png)
 
-O [modelo lógico completo](docs/README.md) documenta tabelas, atributos e relações com maior detalhe.
+O [modelo lógico](docs/README.md) documenta tabelas, atributos e relações em detalhe. Beneficiárias e prontuários usam exclusão lógica (`deletado_em`), porque o histórico clínico nunca deve sumir junto com um cadastro.
 
-O fluxo pode ser acompanhado na própria interface, do encaminhamento por especialidade até a agenda com os quatro status de atendimento:
-
-![Tela de encaminhamentos, com as triagens pendentes e a queixa e especialidades de uma beneficiária](docs/screenshots/manual-08-encaminhamento-detalhe.png)
-
-![Detalhe de um dia na agenda, com atendimentos nos quatro status — Agendado, Confirmado, Realizado e Cancelado](docs/screenshots/manual-11-agenda.png)
+<table>
+  <tr>
+    <td><img src="docs/screenshots/manual-08-encaminhamento-detalhe.png" alt="Tela de encaminhamentos, com as triagens pendentes e a queixa e especialidades de uma beneficiária"></td>
+    <td><img src="docs/screenshots/manual-11-agenda.png" alt="Agenda do dia com atendimentos nos quatro status"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Encaminhamento por especialidade</sub></td>
+    <td align="center"><sub>Agenda com os quatro status de atendimento</sub></td>
+  </tr>
+</table>
 
 ## Controle de acesso aos prontuários
 
-O sistema possui três perfis funcionais:
+O sistema tem três perfis funcionais:
 
-- **GESTORA:** administra usuários e processos organizacionais e acessa as áreas de gestão.
+- **GESTORA:** administra usuários e processos da organização e acessa as áreas de gestão.
 - **TRIADORA:** registra triagens, queixas e encaminhamentos.
-- **PROFISSIONAL:** acompanha a própria agenda e registra prontuários vinculados à sua especialidade.
+- **PROFISSIONAL:** acompanha a própria agenda e registra prontuários da sua especialidade.
 
-O RBAC não existe só no backend: cada perfil também enxerga um menu diferente na interface.
+![Menu lateral dos perfis gestora, triadora e profissional, lado a lado](docs/screenshots/readme-rbac-sidebars.png)
 
-![Comparação lado a lado do menu lateral para os perfis gestora, triadora e profissional, mostrando quantos itens cada um enxerga](docs/screenshots/readme-rbac-sidebars.png)
+Cada prontuário tem um de quatro níveis de visibilidade, escolhido por quem atendeu:
 
-Cada prontuário possui um dos quatro níveis de visibilidade:
-
-| Visibilidade | Quem pode acessar o conteúdo |
+| Visibilidade | Quem pode ler o conteúdo |
 | --- | --- |
-| **PRIVADO** | Apenas a pessoa autora, salvo compartilhamento explícito. |
-| **ESPECIALIDADE** | Profissionais cuja especialidade seja igual à do prontuário. |
+| **PRIVADO** | Só a autora, salvo compartilhamento explícito. |
+| **ESPECIALIDADE** | Profissionais da mesma especialidade do prontuário. |
 | **GESTORAS** | Usuários com perfil GESTORA. |
 | **EQUIPE_CLINICA** | Usuários com perfil GESTORA ou PROFISSIONAL. |
 
-Esse controle é configurável por prontuário, diretamente na tela de preenchimento:
+![Seletor "Quem pode ver este laudo?" no prontuário](docs/screenshots/readme-prontuario-visibilidade.png)
 
-![Seletor "Quem pode ver este laudo?" no prontuário, com as quatro opções de visibilidade e o campo para incluir alguém individualmente](docs/screenshots/readme-prontuario-visibilidade.png)
+A autoria e o compartilhamento nominal dão acesso em qualquer nível. Só a autora edita ou exclui o laudo, mesmo que ele tenha sido compartilhado com outras pessoas.
 
-A autoria e o compartilhamento nominal concedem acesso independentemente do nível. Quando a regra não autoriza o conteúdo, a API devolve somente metadados do registro e marca o conteúdo como restrito.
+**Por que cruzar perfil e especialidade?** Os dois respondem a perguntas diferentes. O perfil diz o que a pessoa pode fazer na organização; a especialidade diz em que contexto técnico ela atua. Autorizar só pelo perfil PROFISSIONAL abriria todos os registros clínicos para a equipe inteira. Autorizar só pela especialidade deixaria de fora responsabilidades legítimas da gestão. Cruzando os dois, o sistema aplica o menor privilégio sem travar o trabalho, e os casos excepcionais se resolvem com compartilhamento nominal, sem ampliar o acesso de um perfil inteiro.
 
-### Por que cruzar perfil e especialidade?
+## Qualidade e segurança
 
-Perfil e especialidade respondem a perguntas diferentes. O perfil representa a função organizacional e define quais operações o usuário pode executar; a especialidade representa o contexto técnico em que um profissional atua. Autorizar apenas pelo perfil PROFISSIONAL abriria todos os registros clínicos para toda a equipe. Autorizar apenas pela especialidade não cobriria responsabilidades legítimas de gestão.
+| | |
+| --- | --- |
+| Testes | 139 testes unitários e 115 testes e2e (API + PostgreSQL real) |
+| API | 63 rotas REST documentadas em OpenAPI (`/docs`) |
+| Autenticação | JWT com usuário revalidado no banco a cada requisição, bcrypt e limite de tentativas no login |
+| Entrada | DTOs com whitelist (campos não declarados são rejeitados), `ParseUUIDPipe`, erros do Prisma convertidos em 404/409 |
+| Cabeçalhos | Helmet e CORS restrito à origem do frontend |
+| Dados sensíveis | Minimização por perfil (CPF e contatos de doadores só para quem precisa), rascunhos clínicos em `sessionStorage` apagados no logout, PDF de prontuário gerado com escape de HTML e CSP |
 
-A combinação permite aplicar menor privilégio sem bloquear o trabalho: registros ESPECIALIDADE circulam somente entre pares da mesma área, registros GESTORAS atendem ao fluxo administrativo e EQUIPE_CLINICA suporta colaboração multiprofissional. Casos excepcionais são tratados por compartilhamento explícito, sem ampliar permanentemente o acesso de um perfil inteiro.
+## Desenvolvimento local
 
-## Como rodar localmente
-
-### Pré-requisitos
-
-- Node.js 20 ou superior
-- npm
-- Docker com Docker Compose
-
-### 1. Banco local
-
-~~~bash
-docker compose up -d
-~~~
-
-O Compose inicia um PostgreSQL exclusivamente local, exposto na porta 5433 (para não conflitar com um PostgreSQL já instalado localmente na 5432 padrão).
-
-### 2. Backend
+Requisitos: Node.js 20.19+ e Docker (ou um PostgreSQL próprio).
 
 ~~~bash
+# 1. Banco
+docker compose up -d postgres            # PostgreSQL na porta 5433
+
+# 2. API
 cd backend
-cp .env.example .env
-openssl rand -hex 32
-~~~
-
-Copie a saída do último comando para JWT_SECRET em backend/.env. Depois:
-
-~~~bash
+cp .env.example .env                      # preencha JWT_SECRET com: openssl rand -hex 32
 npm install
-npx prisma db push
+npx prisma migrate deploy
 npm run seed
-npm run start:dev
-~~~
+npm run start:dev                         # http://localhost:3001
 
-A API estará em [http://localhost:3001](http://localhost:3001).
-
-### 3. Frontend
-
-Em outro terminal:
-
-~~~bash
+# 3. Interface (em outro terminal)
 cd frontend
 cp .env.example .env.local
 npm install
-npm run dev
+npm run dev                               # http://localhost:3000
 ~~~
 
-A aplicação estará em [http://localhost:3000](http://localhost:3000).
+Testes:
 
-## Credenciais de demonstração
+~~~bash
+cd backend
+npm test                                  # unitários
+npm run test:e2e                          # e2e: use um DATABASE_URL de banco descartável
+npm run lint:check
+~~~
 
-Todos os usuários abaixo usam a senha **NaveDemo@2026**. Ela é pública e existe somente para a instalação local de demonstração.
+## Histórico
 
-| Perfil | E-mail |
-| --- | --- |
-| GESTORA | gestora.demo@example.com |
-| PROFISSIONAL (Psicologia) | profissional.psi.demo@example.com |
-| TRIADORA | triadora.demo@example.com |
+O sistema nasceu em 2026/1 como projeto da disciplina *Trabalho Interdisciplinar: Aplicações para Sustentabilidade*, do curso de Engenharia de Software da PUC Minas, com a ONG como cliente real. A equipe era formada por Vitor Augusto Viana Azevedo, Yan Araújo Resende, Lucas de Souza Pereira e Pedro Arthur Oliveira Silva. O projeto foi premiado como **Trabalho Destaque** na Mostra We Make Software, em setembro de 2026.
 
-O seed também cria profissionais fictícios de Assistência Social e Fisioterapia para popular agenda, encaminhamentos e regras por especialidade.
+Depois da disciplina, a ONG me contratou para reconstruir o sistema para uso real. Este repositório é essa versão. Ele foi publicado sem o histórico de commits original, para que nenhum dado real da organização ficasse no histórico do Git.
 
 ## Documentação
 
-- [Documentação técnica](DOCUMENTACAO_TECNICA.md)
-- [Manual do usuário](MANUAL_USUARIO.md)
-- [DER](docs/der.png)
-- [Modelo lógico](docs/README.md)
-- [Casos de uso](docs/casos-de-uso.png)
-- [Requisitos](docs/requisitos.md)
+- [Documentação técnica](DOCUMENTACAO_TECNICA.md): arquitetura, endpoints, regras de acesso e operação
+- [Manual do usuário](MANUAL_USUARIO.md): guia para quem usa o sistema na ONG
+- [Requisitos](docs/requisitos.md), [casos de uso](docs/casos-de-uso.png), [DER](docs/der.png) e [modelo lógico](docs/README.md), produzidos por mim durante a engenharia do sistema
 
-O DER, o modelo lógico, os diagramas de caso de uso e o documento de requisitos foram produzidos por mim durante a engenharia do sistema.
+## Autor
+
+**Vitor Augusto Viana Azevedo**, estudante de Engenharia de Software na PUC Minas e desenvolvedor full-stack.
+[LinkedIn](https://www.linkedin.com/in/vitorvianaazevedo) · [GitHub](https://github.com/vitorazevedop7)
+
+Licenciado sob a [Licença MIT](LICENSE).

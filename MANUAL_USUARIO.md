@@ -71,8 +71,8 @@ sem saída: dá para cadastrar a beneficiária dentro da própria triagem.
 - Preencher e consultar prontuários
 - Gerar o PDF da ficha
 
-Você só edita os atendimentos que são seus. Os das colegas aparecem, mas não
-podem ser alterados por você.
+Na sua agenda aparecem só os atendimentos que são seus, e só você altera o
+status deles.
 
 > Uma pessoa pode ter mais de um perfil. Se a sua conta é triadora **e**
 > profissional, você enxerga a soma das duas coisas.
@@ -457,6 +457,17 @@ senha de administração — não tem nada que você possa clicar daí para reso
 Para evitar que aconteça de novo: se alguém entrar no sistema pelo menos uma
 vez por semana, ele não adormece. Em época de recesso, combinem quem faz essa
 visitinha.
+
+### "Muitas tentativas. Aguarde um minuto."
+
+Por segurança, o sistema bloqueia o login por um minuto depois de várias
+tentativas seguidas com senha errada. Espere um pouco, confira o e-mail e a
+senha com calma e tente de novo. Se não lembrar a senha, fale com a coordenação.
+
+### Fui desconectada de repente
+
+O acesso dura 8 horas; depois disso é preciso entrar de novo. Se a sua conta
+for desativada pela coordenação, a saída é imediata.
 
 ### Entrei, mas o menu está com menos opções do que antes
 
