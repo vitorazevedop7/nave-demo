@@ -1,3 +1,7 @@
+# Stack completa de demonstração: `docker compose up --build`
+# Interface em http://localhost:3000, API em http://localhost:3001 (docs em /docs).
+#
+# Para desenvolver localmente, suba só o banco: `docker compose up -d postgres`
 services:
   postgres:
     image: postgres:17-alpine
@@ -14,6 +18,37 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  api:
+    build: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://nave_demo:nave_demo_local@postgres:5432/nave_demo
+      # Segredo exclusivo da demo local. Em qualquer outro ambiente, gere um com `openssl rand -hex 32`.
+      JWT_SECRET: ${JWT_SECRET:-demo-local-somente-troque-em-producao-2f9c1e7a}
+      FRONTEND_URL: http://localhost:3000
+      PORT: 3001
+      SEED_DEMO: "true"
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
 
 volumes:
   nave_demo_postgres:
