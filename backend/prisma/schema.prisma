@@ -13,7 +13,6 @@ enum VisibilidadeProntuario {
   EQUIPE_CLINICA
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model agendamentos {
   id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   beneficiaria_id   String?          @db.Uuid
@@ -58,7 +57,6 @@ model bazar_profissionais {
 /// Exclusão de beneficiária é SEMPRE soft delete (`deletado_em`). As relações
 /// filhas que guardam histórico clínico (triagens, prontuários) são Restrict
 /// de propósito: um delete físico deve falhar em vez de levar o histórico junto.
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model beneficiarias {
   id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nome                String          @db.VarChar
@@ -83,21 +81,20 @@ model beneficiarias {
   triagens            triagens[]
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model doacoes {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  doador_id      String?   @db.Uuid
-  tipo           String    @db.VarChar
-  valor          Decimal?  @db.Decimal
-  quantidade     String?   @db.VarChar
-  data           DateTime  @db.Date
-  observacao     String?
-  registrado_por String?   @db.Uuid
-  criado_em      DateTime? @default(now()) @db.Timestamp(6)
-  doadores       doadores? @relation(fields: [doador_id], references: [id], onUpdate: NoAction)
-  usuarios       usuarios? @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
-  campanha_id        String?              @db.Uuid
-  campanhas_doacoes  campanhas_doacoes?   @relation(fields: [campanha_id], references: [id], onUpdate: NoAction)
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  doador_id         String?            @db.Uuid
+  tipo              String             @db.VarChar
+  valor             Decimal?           @db.Decimal
+  quantidade        String?            @db.VarChar
+  data              DateTime           @db.Date
+  observacao        String?
+  registrado_por    String?            @db.Uuid
+  criado_em         DateTime?          @default(now()) @db.Timestamp(6)
+  campanha_id       String?            @db.Uuid
+  doadores          doadores?          @relation(fields: [doador_id], references: [id], onUpdate: NoAction)
+  usuarios          usuarios?          @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
+  campanhas_doacoes campanhas_doacoes? @relation(fields: [campanha_id], references: [id], onUpdate: NoAction)
 }
 
 model campanhas_doacoes {
@@ -110,7 +107,6 @@ model campanhas_doacoes {
   doacoes      doacoes[]
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model doadores {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nome           String    @db.VarChar
@@ -124,7 +120,6 @@ model doadores {
   usuarios       usuarios? @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model encaminhamentos {
   id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   triagem_id    String         @db.Uuid
@@ -135,7 +130,6 @@ model encaminhamentos {
   triagens      triagens       @relation(fields: [triagem_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model perfis_usuario {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id String   @db.Uuid
@@ -143,7 +137,6 @@ model perfis_usuario {
   usuarios   usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model prontuarios {
   id                             String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   beneficiaria_id                String                          @db.Uuid
@@ -154,6 +147,9 @@ model prontuarios {
   visibilidade                   VisibilidadeProntuario          @default(PRIVADO)
   criado_em                      DateTime?                       @default(now()) @db.Timestamp(6)
   atualizado_em                  DateTime?                       @db.Timestamp(6)
+  /// Exclusão de prontuário é soft delete: o registro clínico sai de todas as
+  /// leituras, mas continua no banco para fins de auditoria.
+  deletado_em                    DateTime?                       @db.Timestamp(6)
   agendamentos                   agendamentos?                   @relation(fields: [agendamento_id], references: [id], onUpdate: NoAction)
   beneficiarias                  beneficiarias                   @relation(fields: [beneficiaria_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
   usuarios                       usuarios                        @relation(fields: [profissional_id], references: [id], onUpdate: NoAction)
@@ -176,25 +172,24 @@ model triagens {
   usuarios        usuarios          @relation(fields: [triador_id], references: [id], onUpdate: NoAction)
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model usuarios {
-  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nome                String                @db.VarChar
-  email               String                @unique @db.VarChar
-  senha_hash          String                @db.VarChar
-  especialidade       String?               @db.VarChar
-  ativo               Boolean?              @default(true)
-  criado_em           DateTime?             @default(now()) @db.Timestamp(6)
-  deletado_em         DateTime?             @db.Timestamp(6)
-  agendamentos        agendamentos[]
-  bazar_profissionais bazar_profissionais[] @relation("bazar_profissionais")
-  bazares             bazares[]
-  doacoes             doacoes[]
-  doadores            doadores[]
-  perfis_usuario      perfis_usuario[]
+  id                           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                         String                @db.VarChar
+  email                        String                @unique @db.VarChar
+  senha_hash                   String                @db.VarChar
+  especialidade                String?               @db.VarChar
+  ativo                        Boolean?              @default(true)
+  criado_em                    DateTime?             @default(now()) @db.Timestamp(6)
+  deletado_em                  DateTime?             @db.Timestamp(6)
+  agendamentos                 agendamentos[]
+  bazar_profissionais          bazar_profissionais[] @relation("bazar_profissionais")
+  bazares                      bazares[]
+  doacoes                      doacoes[]
+  doadores                     doadores[]
+  perfis_usuario               perfis_usuario[]
   prontuario_compartilhamentos prontuario_compartilhamentos[]
-  prontuarios         prontuarios[]
-  triagens            triagens[]
+  prontuarios                  prontuarios[]
+  triagens                     triagens[]
 }
 
 model prontuario_compartilhamentos {
