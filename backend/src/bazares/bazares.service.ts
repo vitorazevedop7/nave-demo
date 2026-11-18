@@ -27,9 +27,11 @@ const BAZAR_INCLUDE = {
 
 // Os agendamentos de bazar não têm uma FK própria. Esta etiqueta os associa ao
 // bazar de forma determinística, sem alterar o schema em produção.
-function observacaoAgendamentoBazar(
-  bazar: { id: string; nome: string; local: string | null },
-) {
+function observacaoAgendamentoBazar(bazar: {
+  id: string;
+  nome: string;
+  local: string | null;
+}) {
   return `[bazar:${bazar.id}] Bazar: ${bazar.nome} - ${bazar.local || 'Local a definir'}`;
 }
 
@@ -48,11 +50,16 @@ function periodoDaDataPura(data: Date) {
  * mostrado como 10:00 no navegador do usuário.
  */
 function dataHoraBazar(data: Date | string, horario?: Date | string | null) {
-  const dia = typeof data === 'string' ? data.slice(0, 10) : data.toISOString().slice(0, 10);
+  const dia =
+    typeof data === 'string'
+      ? data.slice(0, 10)
+      : data.toISOString().slice(0, 10);
   const hora = !horario
     ? '09:00'
     : typeof horario === 'string'
-      ? (horario.includes('T') ? horario.slice(11, 16) : horario.slice(0, 5))
+      ? horario.includes('T')
+        ? horario.slice(11, 16)
+        : horario.slice(0, 5)
       : horario.toISOString().slice(11, 16);
 
   return new Date(`${dia}T${hora}:00-03:00`);
@@ -255,7 +262,11 @@ export class BazaresService {
     });
   }
 
-  private whereAgendamentosDoBazar(bazar: { id: string; nome: string; data: Date }) {
+  private whereAgendamentosDoBazar(bazar: {
+    id: string;
+    nome: string;
+    data: Date;
+  }) {
     const { inicio, fim } = periodoDaDataPura(bazar.data);
 
     return {

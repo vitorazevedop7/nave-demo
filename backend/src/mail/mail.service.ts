@@ -132,23 +132,20 @@ export class MailService {
         ? { 'Api-Token': this.mailtrapApiToken }
         : { Authorization: `Bearer ${this.mailtrapApiToken}` };
 
-      response = await fetch(
-        url,
-        {
-          method: 'POST',
-          headers: {
-            ...authorizationHeader,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: { email: this.mailtrapFromEmail, name: 'NAVE' },
-            to: [{ email: message.to }],
-            subject: message.subject,
-            text: message.text,
-          }),
-          signal: AbortSignal.timeout(this.mailtrapApiTimeoutMs),
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          ...authorizationHeader,
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({
+          from: { email: this.mailtrapFromEmail, name: 'NAVE' },
+          to: [{ email: message.to }],
+          subject: message.subject,
+          text: message.text,
+        }),
+        signal: AbortSignal.timeout(this.mailtrapApiTimeoutMs),
+      });
     } catch (error) {
       const apiError = error as {
         code?: unknown;
@@ -174,7 +171,10 @@ export class MailService {
   }
 
   private safeDiagnostic(value: unknown): string {
-    const diagnostic = String(value ?? 'unknown');
+    const diagnostic =
+      typeof value === 'string' || typeof value === 'number'
+        ? String(value)
+        : 'unknown';
     return /^[A-Za-z0-9_-]{1,32}$/.test(diagnostic) ? diagnostic : 'unknown';
   }
 }

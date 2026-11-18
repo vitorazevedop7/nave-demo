@@ -75,7 +75,7 @@ describe('JwtStrategy versão do token', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(prisma.usuarios.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ versao_token: 2 }),
+        where: expect.objectContaining({ versao_token: 2 }) as unknown,
       }),
     );
   });

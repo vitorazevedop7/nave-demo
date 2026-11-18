@@ -27,7 +27,7 @@ describe('MailService', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0];
-    const body = JSON.parse(String(options?.body));
+    const body = JSON.parse(options?.body as string) as { text: string };
 
     expect(url).toBe('https://sandbox.api.mailtrap.io/api/send/12345');
     expect(options).toMatchObject({
@@ -66,7 +66,7 @@ describe('MailService', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0];
-    const body = JSON.parse(String(options?.body));
+    const body = JSON.parse(options?.body as string) as { text: string };
 
     expect(url).toBe('https://send.api.mailtrap.io/api/send');
     expect(options).toMatchObject({

@@ -21,6 +21,7 @@ export async function limparBase(db: Prisma.TransactionClient) {
   await db.bazar_profissionais.deleteMany({});
   await db.bazares.deleteMany({});
   await db.doadores.deleteMany({});
+  await db.redefinicoes_senha.deleteMany({});
   await db.perfis_usuario.deleteMany({});
   await db.beneficiarias.updateMany({ data: { responsavel_id: null } });
   await db.beneficiarias.deleteMany({});
