@@ -1,79 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAuth, getUsuario } from "@/lib/auth";
 import { API_URL, extrairMensagemErro } from "@/lib/api";
-import { buscarBeneficiarias } from "@/lib/beneficiarias";
+import type { BeneficiariaOpcao } from "@/lib/beneficiarias";
 import Button from "@/components/Button";
-
-interface FormBeneficiaria {
-  nome: string;
-  cpf: string;
-  data_nascimento: string;
-  telefone: string;
-  endereco: string;
-  tipo: string;
-  estado_civil: string;
-  escolaridade: string;
-  raca: string;
-  ocupacao: string;
-  empregada: string;
-  status: string;
-}
-
-interface FormQueixa {
-  queixa_principal: string;
-  queixa_secundaria: string;
-  sintomas: string;
-  tipo_violencia: string;
-  observacoes: string;
-}
-
-function maskCPF(value: string): string {
-  return value
-    .replace(/\D/g, '')
-    .slice(0, 11)
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-}
-
-function maskTelefone(value: string): string {
-  return value
-    .replace(/\D/g, '')
-    .slice(0, 11)
-    .replace(/(\d{2})(\d)/, '($1) $2')
-    .replace(/(\d{5})(\d{1,4})$/, '$1-$2');
-}
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "11px",
-  fontWeight: 700,
-  color: "#7a7a70",
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
-  marginBottom: "6px",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 14px",
-  border: "0.5px solid #d6d0c4",
-  borderRadius: "10px",
-  fontSize: "13px",
-  color: "#3a3a35",
-  background: "#faf9f6",
-  outline: "none",
-  boxSizing: "border-box",
-  fontFamily: "inherit",
-};
-
-const textareaStyle: React.CSSProperties = {
-  ...inputStyle,
-  resize: "none",
-};
+import BuscaBeneficiaria from "./_components/BuscaBeneficiaria";
+import CamposNovaBeneficiaria from "./_components/CamposNovaBeneficiaria";
+import CamposQueixa from "./_components/CamposQueixa";
+import type { FormBeneficiaria, FormQueixa } from "./_lib/formulario";
 
 export default function NovaTriagem() {
   const router = useRouter();
@@ -82,17 +18,11 @@ export default function NovaTriagem() {
   const [salvando, setSalvando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
 
-  const [buscaResponsavel, setBuscaResponsavel] = useState('');
-  const [sugestoesResponsavel, setSugestoesResponsavel] = useState<{id: string, nome: string}[]>([]);
-  const [responsavelSelecionada, setResponsavelSelecionada] = useState<{id: string, nome: string} | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [responsavelSelecionada, setResponsavelSelecionada] = useState<BeneficiariaOpcao | null>(null);
 
   // Modo de origem da beneficiária: reaproveitar uma já cadastrada ou criar nova.
   const [modo, setModo] = useState<"nova" | "existente">("nova");
-  const [buscaBeneficiaria, setBuscaBeneficiaria] = useState('');
-  const [sugestoesBeneficiaria, setSugestoesBeneficiaria] = useState<{id: string, nome: string}[]>([]);
-  const [beneficiariaSelecionada, setBeneficiariaSelecionada] = useState<{id: string, nome: string} | null>(null);
-  const debounceBenefRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [beneficiariaSelecionada, setBeneficiariaSelecionada] = useState<BeneficiariaOpcao | null>(null);
 
   // Pré-seleção via query string (ex.: vindo do botão "Iniciar triagem" da lista).
   // Lê de window.location para evitar a exigência de <Suspense> do useSearchParams.
@@ -105,14 +35,6 @@ export default function NovaTriagem() {
       setBeneficiariaSelecionada({ id, nome: nome ?? "Beneficiária selecionada" });
     }
   }, []);
-
-  function buscarBeneficiaria(termo: string) {
-    if (debounceBenefRef.current) clearTimeout(debounceBenefRef.current);
-    if (termo.length < 2) { setSugestoesBeneficiaria([]); return; }
-    debounceBenefRef.current = setTimeout(async () => {
-      setSugestoesBeneficiaria(await buscarBeneficiarias(termo));
-    }, 300);
-  }
 
   const [formB, setFormB] = useState<FormBeneficiaria>({
     nome: "",
@@ -137,20 +59,12 @@ export default function NovaTriagem() {
     observacoes: "",
   });
 
-  function changeB(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+  function changeB(e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const { name, value } = e.target;
     setFormB((prev) => ({ ...prev, [name]: value }));
   }
 
-  function buscarResponsavel(termo: string) {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (termo.length < 2) { setSugestoesResponsavel([]); return; }
-    debounceRef.current = setTimeout(async () => {
-      setSugestoesResponsavel(await buscarBeneficiarias(termo, "ADULTA"));
-    }, 300);
-  }
-
-  function changeQ(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  function changeQ(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
     setFormQ((prev) => ({ ...prev, [name]: value }));
   }
@@ -329,236 +243,23 @@ export default function NovaTriagem() {
 
                 {/* ── Modo: beneficiária existente ── */}
                 {modo === "existente" && (
-                  <div style={{ position: "relative", maxWidth: "480px" }}>
-                    <label style={labelStyle}>Beneficiária *</label>
-                    {beneficiariaSelecionada ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{
-                          background: "#e8f5e9", color: "#2e7d32", border: "0.5px solid #a5d6a7",
-                          borderRadius: "20px", padding: "6px 14px", fontSize: "13px", fontWeight: 600,
-                        }}>
-                          {beneficiariaSelecionada.nome}
-                        </span>
-                        <button
-                          type="button"
-                          aria-label="Remover seleção"
-                          onClick={() => { setBeneficiariaSelecionada(null); setBuscaBeneficiaria(''); }}
-                          style={{
-                            background: "none", border: "none", cursor: "pointer",
-                            color: "#7a7a70", fontSize: "16px", lineHeight: 1, padding: "2px 6px",
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <input
-                          value={buscaBeneficiaria}
-                          onChange={(e) => { setBuscaBeneficiaria(e.target.value); buscarBeneficiaria(e.target.value); }}
-                          placeholder="Buscar por nome..."
-                          style={inputStyle}
-                          autoComplete="off"
-                        />
-                        {sugestoesBeneficiaria.length > 0 && (
-                          <ul style={{
-                            position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
-                            background: "#ffffff", border: "0.5px solid #d6d0c4", borderRadius: "10px",
-                            margin: "4px 0 0", padding: 0, listStyle: "none",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                            maxHeight: "200px", overflowY: "auto",
-                          }}>
-                            {sugestoesBeneficiaria.map((s) => (
-                              <li
-                                key={s.id}
-                                onClick={() => { setBeneficiariaSelecionada(s); setBuscaBeneficiaria(s.nome); setSugestoesBeneficiaria([]); }}
-                                style={{ padding: "10px 14px", fontSize: "13px", color: "#3a3a35", cursor: "pointer" }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = "#faf9f6")}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                              >
-                                {s.nome}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        <p style={{ fontSize: "12px", color: "#9B8E84", marginTop: "8px" }}>
-                          Selecione uma beneficiária já cadastrada para iniciar uma nova triagem.
-                        </p>
-                      </>
-                    )}
-                  </div>
+                  <BuscaBeneficiaria
+                    label="Beneficiária *"
+                    placeholder="Buscar por nome..."
+                    selecionada={beneficiariaSelecionada}
+                    onSelecionar={setBeneficiariaSelecionada}
+                    style={{ maxWidth: "480px" }}
+                    dica={
+                      <p style={{ fontSize: "12px", color: "#9B8E84", marginTop: "8px" }}>
+                        Selecione uma beneficiária já cadastrada para iniciar uma nova triagem.
+                      </p>
+                    }
+                  />
                 )}
 
                 {/* ── Modo: nova beneficiária ── */}
                 {modo === "nova" && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-
-                {/* Nome */}
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label htmlFor="triagem-campo-1" style={labelStyle}>Nome completo *</label>
-                  <input id="triagem-campo-1" name="nome" value={formB.nome} onChange={changeB} placeholder="Nome completo" style={inputStyle} />
-                </div>
-
-                {/* CPF */}
-                <div>
-                  <label htmlFor="triagem-campo-2" style={labelStyle}>CPF</label>
-                  <input id="triagem-campo-2" name="cpf" value={formB.cpf} onChange={(e) => setFormB(prev => ({ ...prev, cpf: maskCPF(e.target.value) }))} placeholder="000.000.000-00" style={inputStyle} />
-                </div>
-
-                {/* Data nascimento */}
-                <div>
-                  <label htmlFor="triagem-campo-3" style={labelStyle}>Data de nascimento</label>
-                  <input id="triagem-campo-3" type="date" name="data_nascimento" value={formB.data_nascimento} onChange={changeB} style={inputStyle} />
-                </div>
-
-                {/* Telefone */}
-                <div>
-                  <label htmlFor="triagem-campo-4" style={labelStyle}>Telefone</label>
-                  <input id="triagem-campo-4" name="telefone" value={formB.telefone} onChange={(e) => setFormB(prev => ({ ...prev, telefone: maskTelefone(e.target.value) }))} placeholder="(00) 00000-0000" style={inputStyle} />
-                </div>
-
-                {/* Endereço */}
-                <div>
-                  <label htmlFor="triagem-campo-5" style={labelStyle}>Endereço</label>
-                  <input id="triagem-campo-5" name="endereco" value={formB.endereco} onChange={changeB} placeholder="Rua, número, bairro" style={inputStyle} />
-                </div>
-
-                {/* Tipo */}
-                <div>
-                  <label htmlFor="triagem-campo-6" style={labelStyle}>Tipo</label>
-                  <select id="triagem-campo-6" name="tipo" value={formB.tipo} onChange={changeB} style={inputStyle}>
-                    <option value="ADULTA">Adulta</option>
-                    <option value="ADOLESCENTE">Adolescente</option>
-                    <option value="CRIANCA">Criança</option>
-                  </select>
-                </div>
-
-                {/* Responsável — só aparece para CRIANCA / ADOLESCENTE */}
-                {precisaResponsavel && (
-                  <div style={{ position: "relative" }}>
-                    <label style={labelStyle}>Responsável</label>
-                    {responsavelSelecionada ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{
-                          background: "#e8f5e9", color: "#2e7d32", border: "0.5px solid #a5d6a7",
-                          borderRadius: "20px", padding: "6px 14px", fontSize: "13px", fontWeight: 600,
-                        }}>
-                          {responsavelSelecionada.nome}
-                        </span>
-                        <button
-                          type="button"
-                          aria-label="Remover seleção"
-                          onClick={() => { setResponsavelSelecionada(null); setBuscaResponsavel(''); }}
-                          style={{
-                            background: "none", border: "none", cursor: "pointer",
-                            color: "#7a7a70", fontSize: "16px", lineHeight: 1, padding: "2px 6px",
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <input
-                          value={buscaResponsavel}
-                          onChange={(e) => { setBuscaResponsavel(e.target.value); buscarResponsavel(e.target.value); }}
-                          placeholder="Buscar beneficiária adulta..."
-                          style={inputStyle}
-                          autoComplete="off"
-                        />
-                        {sugestoesResponsavel.length > 0 && (
-                          <ul style={{
-                            position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
-                            background: "#ffffff", border: "0.5px solid #d6d0c4", borderRadius: "10px",
-                            margin: "4px 0 0", padding: 0, listStyle: "none",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                            maxHeight: "200px", overflowY: "auto",
-                          }}>
-                            {sugestoesResponsavel.map((s) => (
-                              <li
-                                key={s.id}
-                                onClick={() => { setResponsavelSelecionada(s); setBuscaResponsavel(s.nome); setSugestoesResponsavel([]); }}
-                                style={{ padding: "10px 14px", fontSize: "13px", color: "#3a3a35", cursor: "pointer" }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = "#faf9f6")}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                              >
-                                {s.nome}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* Estado civil */}
-                <div>
-                  <label htmlFor="triagem-campo-7" style={labelStyle}>Estado civil</label>
-                  <select id="triagem-campo-7" name="estado_civil" value={formB.estado_civil} onChange={changeB} style={inputStyle}>
-                    <option value="">— Selecione —</option>
-                    <option value="SOLTEIRA">Solteira</option>
-                    <option value="CASADA">Casada</option>
-                    <option value="DIVORCIADA">Divorciada</option>
-                    <option value="VIUVA">Viúva</option>
-                    <option value="UNIAO_ESTAVEL">União estável</option>
-                  </select>
-                </div>
-
-                {/* Escolaridade */}
-                <div>
-                  <label htmlFor="triagem-campo-8" style={labelStyle}>Escolaridade</label>
-                  <select id="triagem-campo-8" name="escolaridade" value={formB.escolaridade} onChange={changeB} style={inputStyle}>
-                    <option value="">— Selecione —</option>
-                    <option value="SEM_ESCOLARIDADE">Sem escolaridade</option>
-                    <option value="FUNDAMENTAL">Fundamental</option>
-                    <option value="MEDIO">Médio</option>
-                    <option value="SUPERIOR">Superior</option>
-                    <option value="POS_GRADUACAO">Pós-graduação</option>
-                  </select>
-                </div>
-
-                {/* Raça */}
-                <div>
-                  <label htmlFor="triagem-campo-9" style={labelStyle}>Raça / Cor</label>
-                  <select id="triagem-campo-9" name="raca" value={formB.raca} onChange={changeB} style={inputStyle}>
-                    <option value="">— Selecione —</option>
-                    <option value="BRANCA">Branca</option>
-                    <option value="PRETA">Preta</option>
-                    <option value="PARDA">Parda</option>
-                    <option value="AMARELA">Amarela</option>
-                    <option value="INDIGENA">Indígena</option>
-                  </select>
-                </div>
-
-                {/* Ocupação */}
-                <div>
-                  <label htmlFor="triagem-campo-10" style={labelStyle}>Ocupação</label>
-                  <input id="triagem-campo-10" name="ocupacao" value={formB.ocupacao} onChange={changeB} placeholder="Ex: Doméstica, Vendedora..." style={inputStyle} />
-                </div>
-
-                {/* Empregada */}
-                <div>
-                  <label htmlFor="triagem-campo-11" style={labelStyle}>Situação de emprego</label>
-                  <select id="triagem-campo-11" name="empregada" value={formB.empregada} onChange={changeB} style={inputStyle}>
-                    <option value="">— Selecione —</option>
-                    <option value="true">Empregada</option>
-                    <option value="false">Desempregada</option>
-                  </select>
-                </div>
-
-                {/* Status */}
-                <div>
-                  <label htmlFor="triagem-campo-12" style={labelStyle}>Status</label>
-                  <select id="triagem-campo-12" name="status" value={formB.status} onChange={changeB} style={inputStyle}>
-                    <option value="ATIVA">Ativa</option>
-                    <option value="EM_ESPERA">Em espera</option>
-                    <option value="ENCERRADA">Encerrada</option>
-                    <option value="DESISTENTE">Desistente</option>
-                  </select>
-                </div>
-
-                </div>
+                <CamposNovaBeneficiaria formB={formB} setFormB={setFormB} changeB={changeB} precisaResponsavel={precisaResponsavel} responsavelSelecionada={responsavelSelecionada} setResponsavelSelecionada={setResponsavelSelecionada} />
                 )}
 
               </div>
@@ -566,38 +267,7 @@ export default function NovaTriagem() {
 
             {/* ── Etapa 2 ── */}
             {etapa === 2 && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-
-                {/* Queixa principal */}
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label htmlFor="triagem-campo-13" style={labelStyle}>Queixa principal *</label>
-                  <textarea id="triagem-campo-13" name="queixa_principal" value={formQ.queixa_principal} onChange={changeQ} rows={4} placeholder="Descreva a principal queixa" style={textareaStyle} />
-                </div>
-
-                {/* Queixa secundária */}
-                <div>
-                  <label htmlFor="triagem-campo-14" style={labelStyle}>Queixa secundária</label>
-                  <textarea id="triagem-campo-14" name="queixa_secundaria" value={formQ.queixa_secundaria} onChange={changeQ} rows={4} placeholder="Queixa complementar" style={textareaStyle} />
-                </div>
-
-                {/* Sintomas */}
-                <div>
-                  <label htmlFor="triagem-campo-15" style={labelStyle}>Sintomas</label>
-                  <textarea id="triagem-campo-15" name="sintomas" value={formQ.sintomas} onChange={changeQ} rows={4} placeholder="Sintomas apresentados" style={textareaStyle} />
-                </div>
-
-                {/* Tipo de violência */}
-                <div>
-                  <label htmlFor="triagem-campo-16" style={labelStyle}>Tipo de violência</label>
-                  <input id="triagem-campo-16" name="tipo_violencia" value={formQ.tipo_violencia} onChange={changeQ} placeholder="Ex: física, psicológica..." style={inputStyle} />
-                </div>
-
-                {/* Observações */}
-                <div>
-                  <label htmlFor="triagem-campo-17" style={labelStyle}>Observações</label>
-                  <textarea id="triagem-campo-17" name="observacoes" value={formQ.observacoes} onChange={changeQ} rows={4} placeholder="Observações adicionais" style={textareaStyle} />
-                </div>
-              </div>
+              <CamposQueixa formQ={formQ} changeQ={changeQ} />
             )}
 
             {/* Erro */}

@@ -68,7 +68,9 @@ nave-demo/
 ├── frontend/
 │   ├── app/                       # rotas (App Router): login, dashboard, beneficiarios, triagens,
 │   │                              # encaminhamentos, agenda, prontuarios, profissionais, usuarios,
-│   │                              # doacoes, bazares
+│   │                              # doacoes, bazares. Telas maiores guardam as próprias partes em
+│   │                              # pastas privadas ao lado do page.tsx: _components/ (formulários,
+│   │                              # listas, modais) e _lib/ (tipos, opções e funções puras)
 │   ├── components/                # Sidebar, Modal, DialogProvider, VisibilidadeSelector...
 │   ├── lib/                       # cliente HTTP, auth, formatadores, geração do PDF de prontuário
 │   └── Dockerfile
@@ -365,6 +367,5 @@ Guarde os backups fora do servidor do banco e teste a restauração periodicamen
 
 - **Token no `localStorage`.** O token JWT fica no `localStorage`, sem refresh token. A mitigação atual é a expiração de 8 horas mais a revalidação do usuário no banco a cada requisição. O próximo passo seria um cookie `httpOnly`.
 - **Vínculo bazar ↔ agendamento por texto.** Esse vínculo é feito por texto em `observacoes`; o ideal é uma chave estrangeira.
-- **Componentes grandes no frontend.** `frontend/app/prontuarios/page.tsx` concentra os formulários de quatro tipos de prontuário, e várias telas usam estilos inline em vez de classes Tailwind.
-- **Leitura aberta de campanhas e bazares.** Qualquer perfil autenticado lê campanhas de doação e bazares; nenhum dos dois contém dados pessoais.
+- **Estilos inline no frontend.** As telas maiores já foram divididas em componentes, mas a maioria ainda usa estilos inline em vez de classes Tailwind.
 - **Testes do frontend.** O frontend ainda não tem testes automatizados; ele é coberto indiretamente pelos e2e da API e pelo smoke test do CI.
