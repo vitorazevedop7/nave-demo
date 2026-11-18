@@ -55,7 +55,7 @@ describe('MailService', () => {
       new ConfigService({
         FRONTEND_URL: 'https://nave-app.example',
         MAILTRAP_API_TOKEN: 'production-api-token',
-        MAILTRAP_FROM_EMAIL: 'nao-responda@naveosc.com',
+        MAILTRAP_FROM_EMAIL: 'nao-responda@nave.example',
       }),
     );
 
@@ -77,7 +77,7 @@ describe('MailService', () => {
       },
     });
     expect(body).toMatchObject({
-      from: { email: 'nao-responda@naveosc.com', name: 'NAVE' },
+      from: { email: 'nao-responda@nave.example', name: 'NAVE' },
       to: [{ email: 'gestora@example.com' }],
       subject: 'Redefinição de senha — NAVE',
     });
