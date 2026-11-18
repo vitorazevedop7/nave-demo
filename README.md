@@ -29,6 +29,21 @@ Sistema de gestão do **Núcleo Assistencial Veleiro da Esperança (NAVE)**, uma
 - **Pronto para avaliar.** `docker compose up --build` sobe banco, API e interface já com dados de demonstração. A documentação da API fica em `/docs` (OpenAPI).
 - **CI completo.** O GitHub Actions roda lint, checagem de tipos, testes unitários, migrations, testes e2e, builds e um smoke test da stack Docker a cada push.
 
+<table>
+  <tr>
+    <td width="50%"><img src="docs/premio/premiacao.jpg" alt="Equipe do Sistema NAVE recebendo os certificados de Trabalho Destaque na Mostra We Make Software"></td>
+    <td width="50%"><img src="docs/premio/certificado.jpg" alt="Certificado de Melhores Trabalhos da disciplina Trabalho Interdisciplinar de Software, emitido pela PUC Minas para o Sistema NAVE"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Entrega dos certificados de Trabalho Destaque, 15/09/2026</sub></td>
+    <td align="center"><sub>Certificado emitido pela coordenação do curso</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/premio/apresentacao.jpg" alt="Apresentação do Sistema NAVE no palco da Mostra We Make Software"></td>
+    <td valign="middle"><sub>Apresentação na Mostra We Make Software, Campus Lourdes. <a href="https://www.linkedin.com/feed/update/urn:li:activity:7511815812765093888/">Vídeo da apresentação no LinkedIn</a>.</sub></td>
+  </tr>
+</table>
+
 ## Rodando em um comando
 
 Requisito: Docker com Docker Compose.
@@ -165,21 +180,6 @@ npm run lint:check
 ## Histórico
 
 O sistema nasceu em 2026/1 como projeto da disciplina *Trabalho Interdisciplinar: Aplicações para Sustentabilidade*, do curso de Engenharia de Software da PUC Minas, com a ONG como cliente real. A equipe era formada por Vitor Augusto Viana Azevedo, Yan Araújo Resende, Lucas de Souza Pereira e Pedro Arthur Oliveira Silva. O projeto foi premiado como **Trabalho Destaque** na Mostra We Make Software, em setembro de 2026.
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/premio/premiacao.jpg" alt="Equipe do Sistema NAVE recebendo os certificados de Trabalho Destaque na Mostra We Make Software"></td>
-    <td width="50%"><img src="docs/premio/certificado.jpg" alt="Certificado de Melhores Trabalhos da disciplina Trabalho Interdisciplinar de Software, emitido pela PUC Minas para o Sistema NAVE"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Entrega dos certificados de Trabalho Destaque, 15/09/2026</sub></td>
-    <td align="center"><sub>Certificado emitido pela coordenação do curso</sub></td>
-  </tr>
-  <tr>
-    <td><img src="docs/premio/apresentacao.jpg" alt="Apresentação do Sistema NAVE no palco da Mostra We Make Software"></td>
-    <td valign="middle"><sub>Apresentação na Mostra We Make Software, Campus Lourdes. <a href="https://www.linkedin.com/feed/update/urn:li:activity:7511815812765093888/">Vídeo da apresentação no LinkedIn</a>.</sub></td>
-  </tr>
-</table>
 
 Depois da disciplina, a ONG me contratou para reconstruir o sistema para uso real. Este repositório é essa versão. Ele foi publicado sem o histórico de commits original, para que nenhum dado real da organização ficasse no histórico do Git.
 
