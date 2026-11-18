@@ -71,7 +71,18 @@ Every demo user has the password **NaveDemo@2026**. It is public and exists only
 | Practitioner, Psychology (PROFISSIONAL) | `profissional.psi.demo@example.com` |
 | Intake worker (TRIADORA) | `triadora.demo@example.com` |
 
+The seed also creates fictional Social Work and Physiotherapy practitioners, to populate the schedule, the referrals and the specialty-based rules.
+
 ## Architecture
+
+~~~text
+┌──────────────────────┐   HTTP/JSON + JWT   ┌──────────────────────────┐   Prisma   ┌────────────┐
+│ Next.js 16 / React 19│ ──────────────────▶ │ NestJS 11                │ ─────────▶ │ PostgreSQL │
+│ App Router, Tailwind │                     │ Global guards (JWT,      │            │ 19 tables  │
+│ Recharts             │ ◀────────────────── │ roles), validated DTOs,  │ ◀───────── │ migrations │
+└──────────────────────┘                     │ Prisma error filter      │            └────────────┘
+                                             └──────────────────────────┘
+~~~
 
 | Layer | Technology |
 | --- | --- |
@@ -82,11 +93,36 @@ Every demo user has the password **NaveDemo@2026**. It is public and exists only
 
 Security is enforced on the backend. The UI hides menu items a role can't use, but that's a convenience, not protection. A global guard authenticates every route, and restricted routes also go through a `RolesGuard`. The token is checked against the database on every request, so a deactivated user loses access immediately instead of when the token expires.
 
+## Domain
+
 The core flow follows a client through the organization: **registration → intake (complaint) → referral by specialty → appointment → session → clinical record**. Administrative modules cover users and roles, donors, donations, campaigns and charity bazaars.
+
+![NAVE System entity-relationship diagram](docs/der.png)
+
+The [logical model](docs/README.md) (in Portuguese) documents tables, attributes and relationships in detail. Clients and clinical records are soft-deleted (`deletado_em`), because clinical history must never disappear along with a registration.
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/manual-08-encaminhamento-detalhe.png" alt="Referrals screen, with pending intakes and a client's complaint and specialties"></td>
+    <td><img src="docs/screenshots/manual-11-agenda.png" alt="Daily schedule with appointments in all four statuses"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Referral by specialty</sub></td>
+    <td align="center"><sub>Schedule with the four appointment statuses</sub></td>
+  </tr>
+</table>
 
 ## Clinical-record access control
 
-There are three roles: **GESTORA** (manager), **TRIADORA** (intake worker) and **PROFISSIONAL** (practitioner). Each record has one of four visibility levels, chosen by the practitioner who wrote it:
+The system has three functional roles:
+
+- **GESTORA (manager):** manages users and the organization's processes and has access to the management areas.
+- **TRIADORA (intake worker):** registers clients and records intakes, complaints and referrals.
+- **PROFISSIONAL (practitioner):** follows their own schedule and writes clinical records for their specialty.
+
+![Sidebar menu for the manager, intake worker and practitioner roles, side by side](docs/screenshots/readme-rbac-sidebars.png)
+
+Each record has one of four visibility levels, chosen by the practitioner who wrote it:
 
 | Visibility | Who can read the content |
 | --- | --- |
@@ -95,7 +131,11 @@ There are three roles: **GESTORA** (manager), **TRIADORA** (intake worker) and *
 | **GESTORAS** | Users with the manager role. |
 | **EQUIPE_CLINICA** | Managers and practitioners. |
 
-Authorship and sharing with named people grant access at any level, and only the author can edit or delete a record. Role and specialty answer different questions: authorizing by role alone would open every clinical record to the whole team, and authorizing by specialty alone would leave out legitimate management duties. Combining them gives least privilege without getting in the way of the work.
+![The "Who can see this report?" selector on a clinical record](docs/screenshots/readme-prontuario-visibilidade.png)
+
+Authorship and sharing with named people grant access at any level. Only the author can edit or delete a record, even after it has been shared.
+
+**Why combine role and specialty?** They answer different questions. The role says what a person can do in the organization; the specialty says in which technical context they work. Authorizing by the practitioner role alone would open every clinical record to the whole team. Authorizing by specialty alone would leave out legitimate management duties. Combining them gives least privilege without getting in the way of the work, and exceptions are handled by sharing with named people instead of widening access for a whole role.
 
 ## Quality and security
 
@@ -106,13 +146,53 @@ Authorship and sharing with named people grant access at any level, and only the
 | Authentication | JWT with the user re-validated against the database on every request, bcrypt, login rate limiting |
 | Input | Whitelisted DTOs (unknown fields rejected), `ParseUUIDPipe`, Prisma errors mapped to 404/409 |
 | Headers | Helmet; CORS restricted to the frontend origin |
-| Sensitive data | Per-role data minimization, clinical drafts kept in `sessionStorage` and cleared on logout, clinical-record PDFs built with HTML escaping and a CSP |
+| Sensitive data | Per-role data minimization (donor tax IDs and contacts only for those who need them), clinical drafts kept in `sessionStorage` and cleared on logout, clinical-record PDFs built with HTML escaping and a CSP |
+
+## Local development
+
+Requires Node.js 20.19+ and Docker (or your own PostgreSQL).
+
+~~~bash
+# 1. Database
+docker compose up -d postgres            # PostgreSQL on port 5433
+
+# 2. API
+cd backend
+cp .env.example .env                      # set JWT_SECRET with: openssl rand -hex 32
+npm install
+npx prisma migrate deploy
+npm run seed
+npm run start:dev                         # http://localhost:3001
+
+# 3. UI (in another terminal)
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev                               # http://localhost:3000
+~~~
+
+Tests:
+
+~~~bash
+cd backend
+npm test                                  # unit
+npm run test:e2e                          # e2e: point DATABASE_URL at a disposable database
+npm run lint:check
+~~~
 
 ## History
 
 The system began in the first semester of 2026 as a project for the *Interdisciplinary Project: Applications for Sustainability* course in the Software Engineering program at PUC Minas, with the non-profit as a real client. The team was Vitor Augusto Viana Azevedo, Yan Araújo Resende, Lucas de Souza Pereira and Pedro Arthur Oliveira Silva. The project won the **Outstanding Project** award at the Mostra We Make Software showcase in September 2026.
 
 After the course, the non-profit hired me to rebuild the system for real use. This repository is that version. It was published without its original commit history so that no real data from the organization would remain in Git history.
+
+## Documentation
+
+These documents are in Portuguese:
+
+- [Technical documentation](DOCUMENTACAO_TECNICA.md): architecture, endpoints, access rules and operations
+- [User manual](MANUAL_USUARIO.md): guide for the non-profit's staff
+- [Requirements](docs/requisitos.md), [use cases](docs/casos-de-uso.png), [ER diagram](docs/der.png) and [logical model](docs/README.md), which I produced while engineering the system
 
 ## Author
 
