@@ -23,7 +23,7 @@ Management system for **Núcleo Assistencial Veleiro da Esperança (NAVE)**, a n
 
 ## Highlights
 
-- **In real use.** It started as a university project and became the system the non-profit uses every day (see [History](#history)).
+- **In real use, and award-winning.** It started as a university project, won the Outstanding Project award at PUC Minas' Mostra We Make Software showcase and became the system the non-profit uses every day (see [History](#history)).
 - **Clinical-record access by role × specialty.** Every record has one of four visibility levels, plus sharing with named people. When access is denied, the API returns only the record's metadata, never its content.
 - **Security proven by tests.** End-to-end tests run against a real PostgreSQL database and cover the visibility matrix, role guards, access revocation for deactivated users and input validation.
 - **Easy to evaluate.** `docker compose up --build` starts the database, API and UI with demo data already loaded. API docs are served at `/docs` (OpenAPI).
@@ -93,6 +93,21 @@ Authorship and sharing with named people grant access at any level, and only the
 ## History
 
 The system began in the first semester of 2026 as a project for the *Interdisciplinary Project: Applications for Sustainability* course in the Software Engineering program at PUC Minas, with the non-profit as a real client. The team was Vitor Augusto Viana Azevedo, Yan Araújo Resende, Lucas de Souza Pereira and Pedro Arthur Oliveira Silva. The project won the **Outstanding Project** award at the Mostra We Make Software showcase in September 2026.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/premio/premiacao.jpg" alt="The Sistema NAVE team receiving the Outstanding Project certificates at the Mostra We Make Software showcase"></td>
+    <td width="50%"><img src="docs/premio/certificado.jpg" alt="Best Projects certificate for the Interdisciplinary Software Project course, issued by PUC Minas for Sistema NAVE"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Outstanding Project certificates, Sept 15, 2026</sub></td>
+    <td align="center"><sub>Certificate issued by the program coordinator (in Portuguese)</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/premio/apresentacao.jpg" alt="Presenting Sistema NAVE on stage at the Mostra We Make Software showcase"></td>
+    <td valign="middle"><sub>Presentation at the Mostra We Make Software showcase, Lourdes campus. <a href="https://www.linkedin.com/feed/update/urn:li:activity:7511815812765093888/">Video of the presentation on LinkedIn</a> (in Portuguese).</sub></td>
+  </tr>
+</table>
 
 After the course, the non-profit hired me to rebuild the system for real use. This repository is that version. It was published without its original commit history so that no real data from the organization would remain in Git history.
 
