@@ -28,6 +28,7 @@ Management system for **Núcleo Assistencial Veleiro da Esperança (NAVE)**, a n
 - **Security proven by tests.** End-to-end tests run against a real PostgreSQL database and cover the visibility matrix, role guards, access revocation for deactivated users and input validation.
 - **Easy to evaluate.** `docker compose up --build` starts the database, API and UI with demo data already loaded. API docs are served at `/docs` (OpenAPI).
 - **Full CI.** On every push, GitHub Actions runs lint, type checks, unit tests, migrations, e2e tests, builds and a smoke test of the Docker stack.
+
 <table>
   <tr>
     <td width="50%"><img src="docs/premio/premiacao.jpg" alt="The Sistema NAVE team receiving the Outstanding Project certificates at the Mostra We Make Software showcase"></td>
