@@ -94,19 +94,31 @@ function mensagemUnicidade(erro: Prisma.PrismaClientKnownRequestError) {
 /**
  * O Prisma informa os campos em `meta.target` (engine nativa) ou em
  * `meta.driverAdapterError.cause.constraint.fields` (driver adapters, como o
- * `@prisma/adapter-pg` usado aqui). Aceita os dois formatos.
+ * `@prisma/adapter-pg` usado aqui). Versões mais novas do adapter trazem só o
+ * nome do índice (`constraint.index`, ex.: `beneficiarias_cpf_key`); nesse
+ * caso o campo é deduzido do padrão de nomes que o Prisma Migrate gera.
  */
 function camposDaViolacao(meta: unknown): string[] {
   const alvo = lerCampo(meta, ['target']);
   if (Array.isArray(alvo)) return alvo.filter(ehString);
 
-  const campos = lerCampo(meta, [
+  const constraint = lerCampo(meta, [
     'driverAdapterError',
     'cause',
     'constraint',
-    'fields',
   ]);
-  return Array.isArray(campos) ? campos.filter(ehString) : [];
+  const campos = lerCampo(constraint, ['fields']);
+  if (Array.isArray(campos)) return campos.filter(ehString);
+
+  const indice = lerString(constraint, ['index']);
+  const tabela =
+    lerString(meta, ['driverAdapterError', 'cause', 'table']) ??
+    lerString(meta, ['modelName']);
+  if (indice && tabela && indice.startsWith(`${tabela}_`)) {
+    const campo = indice.slice(tabela.length + 1).replace(/_key$/, '');
+    if (campo) return [campo];
+  }
+  return [];
 }
 
 function lerCampo(objeto: unknown, caminho: string[]): unknown {

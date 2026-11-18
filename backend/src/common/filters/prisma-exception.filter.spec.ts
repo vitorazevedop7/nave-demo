@@ -52,6 +52,22 @@ describe('PrismaExceptionFilter', () => {
     expect(corpo.message).toBe('Já existe uma beneficiária com este CPF.');
   });
 
+  it('P2002 deduz o campo pelo nome do índice quando o adapter não envia fields', () => {
+    const { corpo } = executar(
+      erroPrisma('P2002', {
+        modelName: 'beneficiarias',
+        driverAdapterError: {
+          cause: {
+            constraint: { index: 'beneficiarias_cpf_key' },
+            table: 'beneficiarias',
+          },
+        },
+      }),
+    );
+
+    expect(corpo.message).toBe('Já existe uma beneficiária com este CPF.');
+  });
+
   it('P2002 aceita também o formato meta.target da engine nativa', () => {
     const { corpo } = executar(
       erroPrisma('P2002', { modelName: 'usuarios', target: ['email'] }),

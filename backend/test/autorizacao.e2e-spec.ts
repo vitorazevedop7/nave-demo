@@ -35,6 +35,8 @@ describe('Autorização por perfil (e2e)', () => {
     ['psi', 'get', '/doacoes'],
     ['psi', 'get', '/doadores'],
     ['psi', 'get', '/agendamentos'],
+    ['psi', 'get', '/campanhas-doacoes'],
+    ['psi', 'get', '/bazares'],
     ['psi', 'post', '/campanhas-doacoes'],
     ['gestora', 'get', '/agendamentos/meus'],
   ];
@@ -64,7 +66,6 @@ describe('Autorização por perfil (e2e)', () => {
     ['psi', '/agendamentos/meus'],
     ['psi', '/beneficiarias/buscar?busca=E2E'],
     ['psi', '/usuarios/compartilhaveis'],
-    ['psi', '/campanhas-doacoes'],
     ['psi', '/dashboard/stats?period=hoje'],
   ];
 

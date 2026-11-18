@@ -171,14 +171,24 @@ describe('Prontuários (e2e)', () => {
     expect(destinatario.body).not.toHaveProperty('compartilhamentos');
   });
 
-  it('"compartilhados comigo" lista o prontuário compartilhado nominalmente', async () => {
+  it('"outros prontuários" lista o que o profissional pode ler, com a origem do acesso', async () => {
     const resposta = await como(app, tokens.fisio)
-      .get('/prontuarios/compartilhados-comigo')
+      .get('/prontuarios/outros')
       .expect(200);
 
-    expect(resposta.body).toEqual([
-      expect.objectContaining({ id: base.prontuarios.privadoCompartilhado.id }),
-    ]);
+    const porId = new Map(
+      (resposta.body as { id: string; origem_acesso: string }[]).map((p) => [
+        p.id,
+        p.origem_acesso,
+      ]),
+    );
+    expect(porId.get(base.prontuarios.privadoCompartilhado.id)).toBe(
+      'COMPARTILHADO_COM_VOCE',
+    );
+    expect(porId.get(base.prontuarios.equipeClinica.id)).toBe('EQUIPE_CLINICA');
+    expect(porId.has(base.prontuarios.privado.id)).toBe(false);
+    expect(porId.has(base.prontuarios.especialidade.id)).toBe(false);
+    expect(porId.has(base.prontuarios.gestoras.id)).toBe(false);
   });
 
   describe('autoria', () => {
