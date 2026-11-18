@@ -32,16 +32,18 @@ Sistema de gestão do **Núcleo Assistencial Veleiro da Esperança (NAVE)**, uma
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/premio/premiacao.jpg" alt="Equipe do Sistema NAVE recebendo os certificados de Trabalho Destaque na Mostra We Make Software"></td>
-    <td width="50%"><img src="docs/premio/certificado.jpg" alt="Certificado de Melhores Trabalhos da disciplina Trabalho Interdisciplinar de Software, emitido pela PUC Minas para o Sistema NAVE"></td>
+    <td width="50%" valign="middle" align="center"><img src="docs/premio/premiacao.jpg" alt="Equipe do Sistema NAVE recebendo os certificados de Trabalho Destaque na Mostra We Make Software"></td>
+    <td width="50%" valign="middle" align="center"><img src="docs/premio/certificado.jpg" alt="Certificado de Melhores Trabalhos da disciplina Trabalho Interdisciplinar de Software, emitido pela PUC Minas para o Sistema NAVE"></td>
   </tr>
   <tr>
     <td align="center"><sub>Entrega dos certificados de Trabalho Destaque, 15/09/2026</sub></td>
     <td align="center"><sub>Certificado emitido pela coordenação do curso</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/premio/apresentacao.jpg" alt="Apresentação do Sistema NAVE no palco da Mostra We Make Software"></td>
-    <td valign="middle"><sub>Apresentação na Mostra We Make Software, Campus Lourdes. <a href="https://www.linkedin.com/feed/update/urn:li:activity:7511815812765093888/">Vídeo da apresentação no LinkedIn</a>.</sub></td>
+    <td colspan="2" align="center"><img src="docs/premio/apresentacao.jpg" width="70%" alt="Apresentação do Sistema NAVE no palco da Mostra We Make Software"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><sub>Apresentação na Mostra We Make Software, Campus Lourdes. <a href="https://www.linkedin.com/feed/update/urn:li:activity:7511815812765093888/">Vídeo da apresentação no LinkedIn</a>.</sub></td>
   </tr>
 </table>
 

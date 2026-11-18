@@ -32,16 +32,18 @@ Management system for **Núcleo Assistencial Veleiro da Esperança (NAVE)**, a n
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/premio/premiacao.jpg" alt="The Sistema NAVE team receiving the Outstanding Project certificates at the Mostra We Make Software showcase"></td>
-    <td width="50%"><img src="docs/premio/certificado.jpg" alt="Best Projects certificate for the Interdisciplinary Software Project course, issued by PUC Minas for Sistema NAVE"></td>
+    <td width="50%" valign="middle" align="center"><img src="docs/premio/premiacao.jpg" alt="The Sistema NAVE team receiving the Outstanding Project certificates at the Mostra We Make Software showcase"></td>
+    <td width="50%" valign="middle" align="center"><img src="docs/premio/certificado.jpg" alt="Best Projects certificate for the Interdisciplinary Software Project course, issued by PUC Minas for Sistema NAVE"></td>
   </tr>
   <tr>
     <td align="center"><sub>Outstanding Project certificates, Sept 15, 2026</sub></td>
     <td align="center"><sub>Certificate issued by the program coordinator (in Portuguese)</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/premio/apresentacao.jpg" alt="Presenting Sistema NAVE on stage at the Mostra We Make Software showcase"></td>
-    <td valign="middle"><sub>Presentation at the Mostra We Make Software showcase, Lourdes campus. <a href="https://www.linkedin.com/feed/update/urn:li:activity:7511815812765093888/">Video of the presentation on LinkedIn</a> (in Portuguese).</sub></td>
+    <td colspan="2" align="center"><img src="docs/premio/apresentacao.jpg" width="70%" alt="Presenting Sistema NAVE on stage at the Mostra We Make Software showcase"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><sub>Presentation at the Mostra We Make Software showcase, Lourdes campus. <a href="https://www.linkedin.com/feed/update/urn:li:activity:7511815812765093888/">Video of the presentation on LinkedIn</a> (in Portuguese).</sub></td>
   </tr>
 </table>
 
