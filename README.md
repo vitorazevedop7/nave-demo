@@ -15,10 +15,10 @@ Sistema de gestão do **Núcleo Assistencial Veleiro da Esperança (NAVE)**, uma
 
 <p align="center">
   <a href="docs/demo/nave-demo.mp4">
-    <img src="docs/demo/nave-demo.gif" alt="Demonstração do Sistema NAVE: login da gestora, triagem, encaminhamento, agendamento e prontuário com visibilidade controlada" width="900">
+    <img src="docs/demo/nave-demo.gif" alt="Demonstração do Sistema NAVE: abertura, painel da gestora com os indicadores do dia e triagem em duas etapas" width="900">
   </a>
   <br>
-  <sub>▶ Clique para ver o vídeo completo (MP4, 1080p)</sub>
+  <sub>▶ Clique para ver o vídeo completo (MP4, 720p)</sub>
 </p>
 
 ## Destaques

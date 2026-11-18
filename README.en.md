@@ -15,10 +15,10 @@ Management system for **Núcleo Assistencial Veleiro da Esperança (NAVE)**, a n
 
 <p align="center">
   <a href="docs/demo/nave-demo.mp4">
-    <img src="docs/demo/nave-demo.gif" alt="NAVE System demo: manager login, intake, referral, scheduling and a clinical record with controlled visibility" width="900">
+    <img src="docs/demo/nave-demo.gif" alt="NAVE System demo: opening title, manager dashboard with the day's indicators and two-step intake" width="900">
   </a>
   <br>
-  <sub>▶ Click to watch the full video (MP4, 1080p, UI in Portuguese)</sub>
+  <sub>▶ Click to watch the full video (MP4, 720p, UI in Portuguese)</sub>
 </p>
 
 ## Highlights
