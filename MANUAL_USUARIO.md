@@ -20,8 +20,9 @@ direto para a tarefa que precisa. Se for a sua primeira vez, vale ler na ordem.
 4. [Fazer uma triagem](#4-fazer-uma-triagem)
 5. [Encaminhar para uma especialidade](#5-encaminhar-para-uma-especialidade)
 6. [Agendar o atendimento](#6-agendar-o-atendimento)
-7. [Arquivar uma beneficiária](#7-arquivar-uma-beneficiária)
-8. [Problemas comuns](#8-problemas-comuns)
+7. [Registrar o atendimento (prontuário)](#7-registrar-o-atendimento-prontuário)
+8. [Arquivar uma beneficiária](#8-arquivar-uma-beneficiária)
+9. [Problemas comuns](#9-problemas-comuns)
 
 ---
 
@@ -36,31 +37,34 @@ porque aquela parte não faz parte do seu perfil — não é erro do sistema, e 
 
 ### Gestora
 
-Enxerga e faz tudo. É o perfil de quem coordena.
+É o perfil de quem coordena, e o que mais enxerga.
 
 - Cadastrar, editar e arquivar beneficiárias
 - Fazer triagens e encaminhamentos
 - Ver e organizar a agenda de toda a equipe
-- Abrir prontuários
 - Cadastrar e editar as pessoas da equipe
 - Registrar doações, doadores, campanhas e bazares
+
+**Uma coisa a gestora não vê automaticamente: o conteúdo dos prontuários.**
+Quem atende decide, ao salvar cada laudo, quem pode lê-lo. Você sempre enxerga
+que o atendimento aconteceu, com data e profissional — mas o que foi conversado
+só aparece se a profissional tiver liberado. Isso foi combinado assim de
+propósito, e a [seção 7](#7-registrar-o-atendimento-prontuário) explica.
 
 ### Triadora
 
 É quem acolhe e faz a primeira escuta.
 
+- Cadastrar, editar e arquivar beneficiárias, direto pelo menu **Beneficiárias**
 - Fazer triagens e registrar as queixas
 - Encaminhar para as especialidades
 - Ver e organizar a agenda
-- Cadastrar uma beneficiária nova **durante a triagem** (explico como na
-  seção 4)
+- Cadastrar uma beneficiária nova **durante a triagem**, sem precisar sair dela
+  (explico como na seção 4)
 
 **Não abre prontuários.** Isso é proposital: o prontuário guarda o que foi
 conversado no atendimento clínico, e o acesso fica com quem atende. Se você
 tentar entrar, o sistema devolve para a tela inicial.
-
-O menu "Beneficiárias" também não aparece para a triadora — mas você não fica
-sem saída: dá para cadastrar a beneficiária dentro da própria triagem.
 
 ### Profissional
 
@@ -68,7 +72,8 @@ sem saída: dá para cadastrar a beneficiária dentro da própria triagem.
 
 - Ver a sua agenda de atendimentos
 - Confirmar, marcar como realizado ou cancelar os **seus** atendimentos
-- Preencher e consultar prontuários
+- Preencher e consultar os prontuários dos seus atendimentos
+- Escolher quem pode ler cada laudo
 - Gerar o PDF da ficha
 
 Na sua agenda aparecem só os atendimentos que são seus, e só você altera o
@@ -84,7 +89,9 @@ status deles.
 ## 2. Entrar no sistema
 
 1. Abra o navegador e digite o endereço do sistema.
-2. Preencha o **e-mail** e a **senha** que a coordenação te passou.
+2. Preencha o **e-mail** e a **senha** que a coordenação te passou. Se quiser
+   conferir o que digitou, clique no desenho de olho no canto do campo de
+   senha — ele mostra e esconde a senha.
 3. Clique em **Entrar**.
 
 Deu certo? Você cai direto na tela inicial, com o resumo do seu dia.
@@ -100,7 +107,38 @@ O sistema avisa o que aconteceu, em português:
 | "E-mail ou senha incorretos" | Confira se o e-mail está completo e se o Caps Lock não está ligado. |
 | "A senha deve ter pelo menos 6 caracteres" | A senha está incompleta — digite de novo. |
 | "Seu acesso está desativado" | Sua conta foi desativada. Fale com a coordenação. |
-| "Não foi possível conectar ao servidor" | Veja a [seção 8](#8-problemas-comuns). |
+| "Não foi possível conectar ao servidor" | Veja a [seção 9](#9-problemas-comuns). |
+
+### Esqueci minha senha
+
+Acontece. Você mesma resolve, sem depender de ninguém:
+
+1. Na tela de login, clique em **Esqueci minha senha**, embaixo do campo de senha.
+2. Digite o seu e-mail e confirme.
+3. Abra o seu e-mail e procure a mensagem do sistema. Ela chega em alguns
+   minutos — se não aparecer, olhe no lixo eletrônico / spam.
+4. Clique no link da mensagem, escolha a senha nova duas vezes e confirme.
+5. Volte para a tela de login e entre com a senha nova.
+
+Três coisas que valem saber:
+
+- **O link vale uma vez só e expira.** Se você demorar ou clicar duas vezes,
+  ele deixa de funcionar — é só pedir outro do mesmo jeito.
+- **Trocar a senha desconecta os outros aparelhos.** Se você estava logada no
+  computador da sala e no celular, os dois vão pedir login de novo, com a senha
+  nova. Isso é proposital: se alguém tivesse entrado na sua conta, sai na hora.
+- **A tela nunca diz se o e-mail existe ou não.** Ela responde a mesma coisa
+  sempre. Isso é de propósito, para ninguém descobrir de fora quem tem conta
+  aqui. Então confira se digitou o seu e-mail direitinho.
+
+Se o e-mail não chegar de jeito nenhum, fale com a coordenação — pode ser que
+o seu endereço esteja cadastrado com algum erro de digitação.
+
+> Na demonstração local, o envio de e-mail vem desligado: o pedido é aceito,
+> mas nenhuma mensagem sai até que um SMTP ou o Mailtrap seja configurado (veja
+> a documentação técnica).
+
+![Tela Recuperar acesso, com o campo de e-mail preenchido e o botão Enviar instruções](docs/screenshots/manual-13-esqueci-senha.png)
 
 ### Sair do sistema
 
@@ -119,8 +157,8 @@ por segurança. Nada que você salvou se perde — é só entrar de novo.
 
 ## 3. Cadastrar uma beneficiária
 
-> Este é o caminho para **gestoras**. Se você é triadora, o cadastro acontece
-> dentro da triagem — pule para a [seção 4](#4-fazer-uma-triagem).
+> Gestoras e triadoras usam este caminho. Se preferir cadastrar sem sair da
+> triagem, também dá — veja a [seção 4](#4-fazer-uma-triagem).
 
 1. No menu da esquerda, clique em **Beneficiárias**.
 2. No canto superior direito, clique em **Nova Beneficiária**.
@@ -178,7 +216,7 @@ Na lista de beneficiárias, cada linha tem botões de ação à direita:
 - **Editar** — corrigir ou completar a ficha
 - **Histórico** — ver as triagens e os prontuários daquela pessoa
 - **Nova triagem** — já começa a triagem com ela selecionada
-- **Arquivar** — [seção 7](#7-arquivar-uma-beneficiária)
+- **Arquivar** — [seção 8](#8-arquivar-uma-beneficiária)
 
 ![Linha da lista de beneficiárias com os botões Editar, Histórico, Nova triagem e Arquivar](docs/screenshots/manual-05-linha-acoes.png)
 
@@ -200,8 +238,8 @@ opções, clicando na que quiser:
 Digite o nome no campo de busca e clique na pessoa certa na lista que aparece.
 
 **"Nova beneficiária"** — para quem está chegando agora.
-Abre a ficha completa ali mesmo, sem precisar sair da triagem. É o caminho da
-triadora. Os campos são os mesmos da [seção 3](#3-cadastrar-uma-beneficiária),
+Abre a ficha completa ali mesmo, sem precisar sair da triagem. É o caminho mais
+curto no acolhimento. Os campos são os mesmos da [seção 3](#3-cadastrar-uma-beneficiária),
 e de novo: **só o nome completo é obrigatório**.
 
 ![Etapa 1 da triagem, com as opções Beneficiária já cadastrada e Nova beneficiária](docs/screenshots/manual-06-triagem-etapa1.png)
@@ -368,7 +406,94 @@ aparecem para você se organizar, mas não podem ser alterados.
 
 ---
 
-## 7. Arquivar uma beneficiária
+## 7. Registrar o atendimento (prontuário)
+
+Esta seção é para quem atende. Se o seu perfil é só triadora, o prontuário não
+aparece para você — e isso é o combinado, não é falha.
+
+O prontuário é a ficha do atendimento. Cada especialidade tem a sua: anamnese
+de psicologia (adulto e criança), fisioterapia, acupuntura. O sistema abre a
+ficha certa sozinho, de acordo com a sua especialidade.
+
+### Abrir e preencher
+
+1. No menu, clique em **Prontuários**.
+2. Em **Meus atendimentos** aparecem os seus agendamentos, com a beneficiária,
+   a data e a especialidade.
+3. Clique no botão colorido da linha — ele já vem com o nome da ficha
+   ("Anamnese Adulto", "Ficha Fisioterapia", e assim por diante).
+4. Preencha. Fichas maiores são divididas em etapas; use **Próximo** e
+   **Anterior** para circular. O que já foi digitado não se perde ao trocar de
+   etapa.
+5. Clique em **Salvar Prontuário** no fim.
+
+Alguns dados da beneficiária já vêm preenchidos, puxados do cadastro dela —
+nome, telefone, escolaridade, ocupação. Confira, porque pode ter mudado desde
+o cadastro, e corrija na ficha se precisar.
+
+Para voltar num prontuário já salvo, é o mesmo caminho: clique de novo na linha
+do atendimento. O botão do fim passa a ser **Atualizar Prontuário**.
+
+### Prontuários de outras profissionais
+
+A aba **Outros prontuários** lista os laudos de colegas que você tem permissão
+para ler. Cada linha mostra **por que** você tem acesso: porque o laudo foi
+compartilhado com você pelo nome, porque é da sua especialidade, porque foi
+liberado para as gestoras ou para toda a equipe clínica. Esses laudos abrem só
+para leitura — editar e excluir continuam sendo de quem escreveu.
+
+### Quem pode ver este laudo?
+
+No fim da ficha existe um seletor com essa pergunta. **Ele é o coração do
+cuidado com o sigilo, então vale ler com calma.**
+
+Você escolhe entre:
+
+| Opção | Quem lê o conteúdo |
+|-------|--------------------|
+| **Só eu** | Somente você, que escreveu. É o padrão. |
+| **Minha especialidade** | Você e as colegas da mesma especialidade. |
+| **Gestoras** | Você e a coordenação. |
+| **Equipe clínica** | Você e todas as profissionais que atendem. |
+
+Se preferir, dá para liberar para pessoas específicas, escolhendo os nomes.
+
+O sistema começa sempre na opção mais fechada. É de propósito: se você não
+mexer em nada, o laudo fica só com você. Abrir é uma decisão sua, consciente,
+caso a caso.
+
+**O que as outras pessoas veem quando não têm acesso:** elas continuam vendo
+que o atendimento aconteceu — a data, a beneficiária, quem atendeu. O que não
+aparece é o conteúdo clínico. Ou seja, ninguém fica sem saber que a beneficiária
+foi atendida; o que fica protegido é o que ela contou.
+
+**A triadora nunca vê prontuário**, em nenhuma das opções acima. Isso não é
+configurável.
+
+![Seletor Quem pode ver este laudo, com as opções Só eu, Só psicólogos, Eu e as gestoras e Toda a equipe clínica](docs/screenshots/manual-14-visibilidade-laudo.png)
+
+### Imprimir ou salvar em PDF
+
+Tem dois caminhos, e o resultado é o mesmo:
+
+- **Pela lista:** em Meus atendimentos, clique no desenho de impressora ao lado
+  do botão da ficha. É o caminho curto.
+- **Dentro da ficha:** o botão **Imprimir PDF** fica no rodapé, na última etapa.
+
+Nos dois casos abre uma janela para você escolher o que entra no PDF — dá para
+marcar seções inteiras ou campos específicos, ou clicar em **Selecionar tudo**.
+Depois é só **Gerar PDF**, e o navegador abre a janela de impressão, onde você
+imprime no papel ou escolhe "Salvar como PDF".
+
+Um cuidado: o PDF sai do computador e vira um arquivo solto, que pode ser
+esquecido numa pasta de downloads ou numa impressora compartilhada. Gere só o
+que for usar, e trate o papel com o mesmo cuidado da pasta física.
+
+![Janela Selecionar conteúdo para impressão, com as seções da anamnese marcadas e o botão Gerar PDF](docs/screenshots/manual-15-selecao-pdf.png)
+
+---
+
+## 8. Arquivar uma beneficiária
 
 Quando o acompanhamento termina de vez, você arquiva a ficha.
 
@@ -411,7 +536,7 @@ mais fácil de voltar atrás.
 
 ---
 
-## 8. Problemas comuns
+## 9. Problemas comuns
 
 ### "Não foi possível conectar ao servidor"
 

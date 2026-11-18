@@ -26,6 +26,7 @@ Management system for **Núcleo Assistencial Veleiro da Esperança (NAVE)**, a n
 - **In real use, and award-winning.** It started as a university project, won the Outstanding Project award at PUC Minas' Mostra We Make Software showcase and became the system the non-profit uses every day (see [History](#history)).
 - **Clinical-record access by role × specialty.** Every record has one of four visibility levels, plus sharing with named people. When access is denied, the API returns only the record's metadata, never its content.
 - **Security proven by tests.** End-to-end tests run against a real PostgreSQL database and cover the visibility matrix, role guards, access revocation for deactivated users and input validation.
+- **Secure password recovery.** Single-use emailed link stored only as a hash, with request rate limiting; resetting the password revokes every open session.
 - **Easy to evaluate.** `docker compose up --build` starts the database, API and UI with demo data already loaded. API docs are served at `/docs` (OpenAPI).
 - **Full CI.** On every push, GitHub Actions runs lint, type checks, unit tests, migrations, e2e tests, builds and a smoke test of the Docker stack.
 
@@ -98,8 +99,8 @@ Authorship and sharing with named people grant access at any level, and only the
 
 | | |
 | --- | --- |
-| Tests | 139 unit tests and 115 e2e tests (API + real PostgreSQL) |
-| API | 63 REST routes documented with OpenAPI (`/docs`) |
+| Tests | 154 unit tests and 116 e2e tests (API + real PostgreSQL) |
+| API | 65 REST routes documented with OpenAPI (`/docs`) |
 | Authentication | JWT with the user re-validated against the database on every request, bcrypt, login rate limiting |
 | Input | Whitelisted DTOs (unknown fields rejected), `ParseUUIDPipe`, Prisma errors mapped to 404/409 |
 | Headers | Helmet; CORS restricted to the frontend origin |

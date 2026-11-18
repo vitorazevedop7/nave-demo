@@ -38,7 +38,7 @@ A configuração global da aplicação (Helmet, CORS, `ValidationPipe`, filtro d
 | --- | --- |
 | Runtime | Node.js 20.19+ (CI e imagens Docker usam Node 22) |
 | API | NestJS 11, Passport + `@nestjs/jwt`, `class-validator`/`class-transformer`, `@nestjs/swagger`, `@nestjs/throttler`, Helmet, bcrypt |
-| Dados | PostgreSQL 17 (Docker) / 16+, Prisma 7.8 com `@prisma/adapter-pg` |
+| Dados | PostgreSQL 17 (Docker) / 16+, Prisma 7.10 com `@prisma/adapter-pg` |
 | Interface | Next.js 16.1, React 19.2, TypeScript 5, Tailwind CSS 4, Recharts, React Three Fiber (logo 3D do login), lucide-react |
 | Testes | Jest 30, ts-jest, Supertest, `jest-mock-extended` |
 | Qualidade | ESLint 9 com regras type-checked, Prettier, GitHub Actions |
@@ -116,6 +116,13 @@ npm run dev
 | `FRONTEND_URL` | `http://localhost:3000` | Origem liberada no CORS |
 | `PORT` | `3001` | Porta da API |
 | `THROTTLE_DISABLED` | `true` | Desliga o limite de tentativas de login. Usado só pelos testes e2e |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | vazio | Envio do e-mail de recuperação de senha por SMTP. Opcional |
+| `SMTP_CONNECTION_TIMEOUT_MS`, `SMTP_GREETING_TIMEOUT_MS`, `SMTP_SOCKET_TIMEOUT_MS` | `10000`, `10000`, `15000` | Limites de tempo da conexão SMTP |
+| `MAILTRAP_API_TOKEN`, `MAILTRAP_INBOX_ID`, `MAILTRAP_FROM_EMAIL`, `MAILTRAP_API_TIMEOUT_MS` | vazio | Envio pela API HTTPS do Mailtrap. Com `MAILTRAP_INBOX_ID` usa o Sandbox; sem ele, o envio transacional de produção. Tem prioridade sobre o SMTP |
+| `PASSWORD_RESET_TOKEN_TTL_MINUTES` | `30` | Validade do link de redefinição |
+| `PASSWORD_RESET_RATE_LIMIT_MAX`, `PASSWORD_RESET_RATE_LIMIT_WINDOW_MINUTES` | `5`, `15` | Pedidos de recuperação por e-mail na janela (o limite por IP é 5× maior) |
+
+Sem SMTP nem Mailtrap configurados, `POST /auth/esqueci-minha-senha` responde normalmente, mas nenhum e-mail é enviado. É o padrão da demonstração.
 
 **`frontend/.env.local`**
 
@@ -125,7 +132,7 @@ npm run dev
 
 ## 5. Banco de dados e migrations
 
-São 18 tabelas e um enum (`VisibilidadeProntuario`). O DER e o modelo lógico estão em [`docs/`](docs/README.md).
+São 19 tabelas e um enum (`VisibilidadeProntuario`). O DER e o modelo lógico estão em [`docs/`](docs/README.md).
 
 | Grupo | Tabelas |
 | --- | --- |
@@ -156,7 +163,7 @@ A primeira migration (`20260830000000_init`) cria o schema completo. As seguinte
 
 ## 6. Endpoints
 
-A documentação interativa (OpenAPI) fica em `http://localhost:3001/docs`. Ao todo são 63 rotas. Na coluna "Acesso", **autenticado** significa qualquer usuário logado; os demais valores são perfis exigidos pelo `RolesGuard`.
+A documentação interativa (OpenAPI) fica em `http://localhost:3001/docs`. Ao todo são 65 rotas. Na coluna "Acesso", **autenticado** significa qualquer usuário logado; os demais valores são perfis exigidos pelo `RolesGuard`.
 
 ### Infraestrutura e autenticação
 
@@ -164,6 +171,8 @@ A documentação interativa (OpenAPI) fica em `http://localhost:3001/docs`. Ao t
 | --- | --- | --- | --- |
 | GET | `/health` | pública | Status da API e ping no banco (503 se o banco cair) |
 | POST | `/auth/login` | pública, 5 tentativas/min por IP | Retorna `access_token` |
+| POST | `/auth/esqueci-minha-senha` | pública, limitada por e-mail e IP | Gera um link de redefinição e envia por e-mail. Responde 202 com a mesma mensagem exista ou não a conta |
+| POST | `/auth/redefinir-senha` | pública, 5 tentativas/min por IP | Troca a senha a partir do token do link. Token de uso único |
 | GET | `/auth/me` | autenticado | Usuário logado, com perfis e especialidade vindos do banco |
 
 ### Beneficiárias, triagens e queixas
@@ -205,7 +214,7 @@ A documentação interativa (OpenAPI) fica em `http://localhost:3001/docs`. Ao t
 | POST | `/prontuarios` | GESTORA, PROFISSIONAL | Cria laudo para um agendamento da própria profissional |
 | GET | `/prontuarios` | GESTORA, PROFISSIONAL | Lista filtrada pelas regras de visibilidade |
 | GET | `/prontuarios/meus` | GESTORA, PROFISSIONAL | Laudos de autoria do usuário |
-| GET | `/prontuarios/compartilhados-comigo` | GESTORA, PROFISSIONAL | Laudos compartilhados nominalmente |
+| GET | `/prontuarios/outros` | GESTORA, PROFISSIONAL | Laudos de outras autoras que o usuário pode ler, com `origem_acesso` (`COMPARTILHADO_COM_VOCE`, `ESPECIALIDADE`, `GESTORAS` ou `EQUIPE_CLINICA`) |
 | GET | `/prontuarios/profissional/:profissional_id` | GESTORA, PROFISSIONAL | Laudos de uma profissional, filtrados pela visibilidade |
 | GET | `/prontuarios/beneficiaria/:beneficiaria_id` | GESTORA, PROFISSIONAL | Histórico de uma beneficiária, com conteúdo redigido quando não autorizado |
 | GET | `/prontuarios/agendamento/:agendamento_id` | GESTORA, PROFISSIONAL | Laudo de um atendimento |
@@ -233,9 +242,9 @@ A documentação interativa (OpenAPI) fica em `http://localhost:3001/docs`. Ao t
 | GET, PATCH, DELETE | `/doadores/:id` | GESTORA | Detalhe, edição e exclusão lógica |
 | GET, POST | `/doacoes` | GESTORA | Lista e registra doações |
 | GET, PATCH, DELETE | `/doacoes/:id` | GESTORA | Detalhe, edição e exclusão |
-| GET | `/campanhas-doacoes`, `/campanhas-doacoes/:id` | autenticado | Campanhas e metas |
+| GET | `/campanhas-doacoes`, `/campanhas-doacoes/:id` | GESTORA, TRIADORA | Campanhas e metas |
 | POST, PATCH, DELETE | `/campanhas-doacoes[/:id]` | GESTORA | Gestão de campanhas |
-| GET | `/bazares`, `/bazares/:id` | autenticado | Bazares |
+| GET | `/bazares`, `/bazares/:id` | GESTORA, TRIADORA | Bazares |
 | POST, PATCH, DELETE | `/bazares[/:id]` | GESTORA | Gestão de bazares |
 | GET | `/dashboard/stats?period=hoje\|semana\|mes` | autenticado | Indicadores do painel, calculados conforme o perfil |
 
@@ -244,10 +253,11 @@ A documentação interativa (OpenAPI) fica em `http://localhost:3001/docs`. Ao t
 ### 7.1 Autenticação
 
 - `POST /auth/login` compara a senha com bcrypt. Quando o e-mail não existe, a comparação é feita contra um hash fictício, para que o tempo de resposta não revele quais e-mails estão cadastrados.
-- O token JWT expira em 8 horas.
-- O `JwtAuthGuard` é global (`APP_GUARD`): toda rota exige token, exceto as marcadas com `@Public()` (`/auth/login` e `/health`).
+- O token JWT expira em 8 horas e carrega a `versao_token` do usuário no momento do login.
+- O `JwtAuthGuard` é global (`APP_GUARD`): toda rota exige token, exceto as marcadas com `@Public()` (`/auth/login`, `/auth/esqueci-minha-senha`, `/auth/redefinir-senha` e `/health`).
 - A cada requisição, a `JwtStrategy` recarrega o usuário do banco. Se ele estiver inativo ou excluído, a resposta é 401 na hora, sem esperar o token expirar. Perfis e especialidade também vêm do banco, então uma troca de perfil vale imediatamente.
 - O login aceita 5 tentativas por minuto por IP (`@nestjs/throttler`); a 6ª recebe 429.
+- **Recuperação de senha:** o link enviado por e-mail leva um token aleatório de 32 bytes no fragmento da URL (`/redefinir-senha#token=...`), que não chega a logs de servidor. O banco guarda só o SHA-256 dele (`redefinicoes_senha`), com validade e marca de uso. Pedir um link novo invalida os anteriores. Ao redefinir, a `versao_token` do usuário é incrementada, o que derruba na hora todas as sessões abertas; trocar a senha pela tela de usuários faz o mesmo.
 
 ### 7.2 Perfis
 
@@ -302,8 +312,8 @@ Erros inesperados do Prisma viram 500 genérico, sem detalhes internos na respos
 
 | Suíte | Quantidade | Como rodar |
 | --- | --- | --- |
-| Unitários (serviços, guards, DTOs, filtro de erros, dashboard) | 139 testes em 18 suítes | `npm test` |
-| E2E (API real + PostgreSQL) | 115 testes em 5 suítes | `npm run test:e2e` |
+| Unitários (serviços, guards, DTOs, filtro de erros, dashboard) | 154 testes em 21 suítes | `npm test` |
+| E2E (API real + PostgreSQL) | 116 testes em 5 suítes | `npm run test:e2e` |
 
 Os testes e2e (`backend/test/`) sobem o `AppModule` real com o mesmo `configureApp` da produção. A cada suíte, eles apagam e repopulam o banco. Por segurança, só rodam se o nome do banco em `DATABASE_URL` contiver `test`:
 

@@ -26,6 +26,7 @@ Sistema de gestão do **Núcleo Assistencial Veleiro da Esperança (NAVE)**, uma
 - **Em uso real e premiado.** Começou como projeto acadêmico, foi escolhido como Trabalho Destaque na Mostra We Make Software da PUC Minas e virou o sistema que a ONG usa no dia a dia (veja [Histórico](#histórico)).
 - **Acesso a prontuários por perfil × especialidade.** Cada laudo tem um de quatro níveis de visibilidade, com compartilhamento nominal. Quando o acesso é negado, a API devolve só os metadados do registro, nunca o conteúdo.
 - **Segurança verificada em teste.** Os testes e2e rodam contra um PostgreSQL real e cobrem a matriz de visibilidade, os guards de perfil, a revogação de acesso de usuários desativados e a validação de entrada.
+- **Recuperação de senha segura.** Link de uso único por e-mail, guardado no banco só como hash, com limite de pedidos; redefinir a senha derruba todas as sessões abertas.
 - **Pronto para avaliar.** `docker compose up --build` sobe banco, API e interface já com dados de demonstração. A documentação da API fica em `/docs` (OpenAPI).
 - **CI completo.** O GitHub Actions roda lint, checagem de tipos, testes unitários, migrations, testes e2e, builds e um smoke test da stack Docker a cada push.
 
@@ -75,7 +76,7 @@ O seed também cria profissionais fictícios de Assistência Social e Fisioterap
 ~~~text
 ┌──────────────────────┐   HTTP/JSON + JWT   ┌──────────────────────────┐   Prisma   ┌────────────┐
 │ Next.js 16 / React 19│ ──────────────────▶ │ NestJS 11                │ ─────────▶ │ PostgreSQL │
-│ App Router, Tailwind │                     │ Guards globais (JWT,     │            │ 18 tabelas │
+│ App Router, Tailwind │                     │ Guards globais (JWT,     │            │ 19 tabelas │
 │ Recharts             │ ◀────────────────── │ perfis), DTOs validados, │ ◀───────── │ migrations │
 └──────────────────────┘                     │ filtro de erros Prisma   │            └────────────┘
                                              └──────────────────────────┘
@@ -114,7 +115,7 @@ O [modelo lógico](docs/README.md) documenta tabelas, atributos e relações em 
 O sistema tem três perfis funcionais:
 
 - **GESTORA:** administra usuários e processos da organização e acessa as áreas de gestão.
-- **TRIADORA:** registra triagens, queixas e encaminhamentos.
+- **TRIADORA:** cadastra beneficiárias e registra triagens, queixas e encaminhamentos.
 - **PROFISSIONAL:** acompanha a própria agenda e registra prontuários da sua especialidade.
 
 ![Menu lateral dos perfis gestora, triadora e profissional, lado a lado](docs/screenshots/readme-rbac-sidebars.png)
@@ -138,8 +139,8 @@ A autoria e o compartilhamento nominal dão acesso em qualquer nível. Só a aut
 
 | | |
 | --- | --- |
-| Testes | 139 testes unitários e 115 testes e2e (API + PostgreSQL real) |
-| API | 63 rotas REST documentadas em OpenAPI (`/docs`) |
+| Testes | 154 testes unitários e 116 testes e2e (API + PostgreSQL real) |
+| API | 65 rotas REST documentadas em OpenAPI (`/docs`) |
 | Autenticação | JWT com usuário revalidado no banco a cada requisição, bcrypt e limite de tentativas no login |
 | Entrada | DTOs com whitelist (campos não declarados são rejeitados), `ParseUUIDPipe`, erros do Prisma convertidos em 404/409 |
 | Cabeçalhos | Helmet e CORS restrito à origem do frontend |
