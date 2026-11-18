@@ -16,7 +16,7 @@ import ModalGerenciarDoadores from "./_components/ModalGerenciarDoadores";
 import { ConfirmModal } from "./_components/dialogos";
 import { BarChart, IconGift, IconMoney, IconPeople, StatCard, card } from "./_components/indicadores";
 import { fmtBRL, isValidEmail, isValidPhone } from "./_lib/helpers";
-import type { Campanha, Doacao, Doador, ExclusaoPendente, FormCampanha, FormDoacao, FormDoador, ModalType } from "./_lib/tipos";
+import { DOADOR_VAZIO, type Campanha, type Doacao, type Doador, type ExclusaoPendente, type FormCampanha, type FormDoacao, type FormDoador, type ModalType } from "./_lib/tipos";
 
 /* ─── Main Page ─────────────────────────────────────────────── */
 export default function Doacoes() {
@@ -46,7 +46,7 @@ export default function Doacoes() {
     observacao: "",
     campanha_id: "",
   });
-  const [formDoador, setFormDoador] = useState<FormDoador>({ nome: "", tipo: "PESSOA_FISICA", telefone: "", email: "" });
+  const [formDoador, setFormDoador] = useState<FormDoador>(DOADOR_VAZIO);
   const [formCampanha, setFormCampanha] = useState<FormCampanha>({ nome: "", descricao: "", meta_valor: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   /* busca dentro do modal de registrar doacao */
@@ -152,14 +152,28 @@ export default function Doacoes() {
     }
 
     try {
-      const r = await fetchAuth(`${API_URL}/doadores`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formDoador),
-      });
-      if (r.ok) { setActiveModal(null); setFormErrors({}); load(); }
-      else {
-        setFormErrors({ form: await extrairMensagemErro(r, "Não foi possível cadastrar o doador.") });
+      // Editar atualiza o doador existente; sem id, é um cadastro novo.
+      const r = await fetchAuth(
+        editingDoadorId ? `${API_URL}/doadores/${editingDoadorId}` : `${API_URL}/doadores`,
+        {
+          method: editingDoadorId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formDoador),
+        },
+      );
+      if (r.ok) {
+        setActiveModal(null);
+        setEditingDoadorId(null);
+        setFormDoador(DOADOR_VAZIO);
+        setFormErrors({});
+        load();
+      } else {
+        setFormErrors({
+          form: await extrairMensagemErro(
+            r,
+            editingDoadorId ? "Não foi possível salvar o doador." : "Não foi possível cadastrar o doador.",
+          ),
+        });
       }
     } catch (err: unknown) {
       setFormErrors({ form: mensagemDeErro(err) });
@@ -217,6 +231,13 @@ export default function Doacoes() {
 
   async function deletarCampanha(id: string, nome: string) {
     setConfirmDelete({ type: 'campanha', id, name: nome });
+  }
+
+  function abrirNovoDoador() {
+    setEditingDoadorId(null);
+    setFormDoador(DOADOR_VAZIO);
+    setFormErrors({});
+    setActiveModal("doador");
   }
 
   function openEditarDoador(d: Doador) {
@@ -287,7 +308,7 @@ export default function Doacoes() {
           </div>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             <Button variant="secondary" onClick={() => setActiveModal("campanha")}>+ Campanha</Button>
-            <Button variant="secondary" onClick={() => setActiveModal("doador")}>+ Doador</Button>
+            <Button variant="secondary" onClick={abrirNovoDoador}>+ Doador</Button>
             <Button onClick={() => setActiveModal("doacao")}>+ Nova Doação</Button>
           </div>
         </div>
@@ -345,7 +366,7 @@ export default function Doacoes() {
 
       {/* ── Modal: Gerenciar Doadores ────────────────────────────── */}
       {activeModal === "gerenciar-doadores" && (
-        <ModalGerenciarDoadores doadores={doadores} openEditarDoador={openEditarDoador} deletarDoador={deletarDoador} setActiveModal={setActiveModal} setEditingDoadorId={setEditingDoadorId} setFormDoador={setFormDoador} setFormErrors={setFormErrors} />
+        <ModalGerenciarDoadores doadores={doadores} openEditarDoador={openEditarDoador} deletarDoador={deletarDoador} setActiveModal={setActiveModal} abrirNovoDoador={abrirNovoDoador} />
       )}
 
       {/* ── Modal de Confirmação ────────────────────────────────── */}

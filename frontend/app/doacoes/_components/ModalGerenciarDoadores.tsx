@@ -3,19 +3,17 @@
 import Button from "@/components/Button";
 import { Modal } from "./dialogos";
 import { IconTrash } from "./indicadores";
-import type { Doador, FormDoador, ModalType } from "../_lib/tipos";
+import type { Doador, ModalType } from "../_lib/tipos";
 
 interface ModalGerenciarDoadoresProps {
   doadores: Doador[];
   openEditarDoador: (d: Doador) => void;
   deletarDoador: (id: string, nome: string) => void;
   setActiveModal: (valor: ModalType) => void;
-  setEditingDoadorId: (valor: string | null) => void;
-  setFormDoador: (valor: FormDoador) => void;
-  setFormErrors: (valor: Record<string, string>) => void;
+  abrirNovoDoador: () => void;
 }
 
-export default function ModalGerenciarDoadores({ doadores, openEditarDoador, deletarDoador, setActiveModal, setEditingDoadorId, setFormDoador, setFormErrors }: ModalGerenciarDoadoresProps) {
+export default function ModalGerenciarDoadores({ doadores, openEditarDoador, deletarDoador, setActiveModal, abrirNovoDoador }: ModalGerenciarDoadoresProps) {
   return (
     <Modal title="Gerenciar Doadores" onClose={() => setActiveModal(null)}>
       {doadores.length === 0 ? (
@@ -40,7 +38,7 @@ export default function ModalGerenciarDoadores({ doadores, openEditarDoador, del
       )}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}>
         <Button variant="ghost" onClick={() => setActiveModal(null)}>Fechar</Button>
-        <Button variant="secondary" onClick={() => { setActiveModal("doador"); setEditingDoadorId(null); setFormDoador({ nome: "", tipo: "PESSOA_FISICA", telefone: "", email: "" }); setFormErrors({}); }}>+ Novo Doador</Button>
+        <Button variant="secondary" onClick={abrirNovoDoador}>+ Novo Doador</Button>
       </div>
     </Modal>
   );

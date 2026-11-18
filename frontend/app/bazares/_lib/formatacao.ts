@@ -12,12 +12,21 @@ export function formatTime(iso: string | null): string {
   });
 }
 
-export function formatCurrency(value: number | null): string {
-  if (!value) return "R$ 0,00";
+export function formatCurrency(value: number | string | null): string {
+  const n = Number(value ?? 0);
+  if (!Number.isFinite(n) || n === 0) return "R$ 0,00";
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(value);
+  }).format(n);
+}
+
+/** Soma os totais dos bazares. O Decimal chega como string da API: somar com + concatenaria. */
+export function somarArrecadado(bazares: { total_arrecadado: number | string | null }[]): number {
+  return bazares.reduce((soma, b) => {
+    const valor = Number(b.total_arrecadado ?? 0);
+    return soma + (Number.isFinite(valor) ? valor : 0);
+  }, 0);
 }
 
 /** "1970-01-01T10:30:00.000Z" → "10:30", para preencher <input type="time">. */

@@ -12,7 +12,7 @@ import ResumoBazares from "./_components/ResumoBazares";
 import FiltrosBazares from "./_components/FiltrosBazares";
 import CartaoBazar from "./_components/CartaoBazar";
 import FormularioBazar from "./_components/FormularioBazar";
-import { extrairHora } from "./_lib/formatacao";
+import { extrairHora, somarArrecadado } from "./_lib/formatacao";
 import { FORM_BAZAR_VAZIO, type FormBazar, type UserInfo } from "./_lib/tipos";
 
 export default function Bazares() {
@@ -194,7 +194,7 @@ export default function Bazares() {
 
   const proximoBazarNome = bazaresFuturos.length > 0 ? bazaresFuturos[0].nome : "Nenhum bazar agendado";
 
-  const totalArrecadado = bazares.reduce((sum, b) => sum + (b.total_arrecadado || 0), 0);
+  const totalArrecadado = somarArrecadado(bazares);
 
   const filtered = bazares.filter((b) => {
     const matchSearch =

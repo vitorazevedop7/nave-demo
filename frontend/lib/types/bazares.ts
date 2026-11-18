@@ -19,7 +19,8 @@ export interface Bazar {
   horario_fim: string | null;
   local: string | null;
   descricao: string | null;
-  total_arrecadado: number | null;
+  /** Coluna Decimal: o Prisma serializa como string ("915.5"). Converta com Number() antes de somar. */
+  total_arrecadado: number | string | null;
   observacoes: string | null;
   criado_em: string;
   usuarios: { id: string; nome: string } | null;

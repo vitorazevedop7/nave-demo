@@ -237,7 +237,8 @@ export const BazarUtils = {
       total: bazares.length,
       futuros: bazares.filter((b) => BazarUtils.isFutureBazar(b.data)).length,
       passados: bazares.filter((b) => !BazarUtils.isFutureBazar(b.data)).length,
-      arrecadado: bazares.reduce((sum, b) => sum + (b.total_arrecadado || 0), 0),
+      // Decimal chega como string da API: converter antes de somar.
+      arrecadado: bazares.reduce((sum, b) => sum + (Number(b.total_arrecadado ?? 0) || 0), 0),
       mediaArrecadado: 0,
       localMaisFrequente: '',
     };

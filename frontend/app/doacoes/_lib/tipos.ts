@@ -49,6 +49,8 @@ export interface FormDoador {
   email: string;
 }
 
+export const DOADOR_VAZIO: FormDoador = { nome: "", tipo: "PESSOA_FISICA", telefone: "", email: "" };
+
 export interface FormCampanha {
   nome: string;
   descricao: string;
