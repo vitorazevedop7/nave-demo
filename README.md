@@ -28,7 +28,7 @@ Sistema de gestão do **Núcleo Assistencial Veleiro da Esperança (NAVE)**, uma
 - **Segurança verificada em teste.** Os testes e2e rodam contra um PostgreSQL real e cobrem a matriz de visibilidade, os guards de perfil, a revogação de acesso de usuários desativados e a validação de entrada.
 - **Recuperação de senha segura.** Link de uso único por e-mail, guardado no banco só como hash, com limite de pedidos; redefinir a senha derruba todas as sessões abertas.
 - **Pronto para avaliar.** `docker compose up --build` sobe banco, API e interface já com dados de demonstração. A documentação da API fica em `/docs` (OpenAPI).
-- **CI completo.** O GitHub Actions roda lint, checagem de tipos, testes unitários, migrations, testes e2e, builds e um smoke test da stack Docker a cada push.
+- **CI completo.** O GitHub Actions roda lint, checagem de tipos, testes unitários do backend e do frontend, migrations, testes e2e, builds e um smoke test da stack Docker a cada push.
 
 <table>
   <tr>
@@ -89,7 +89,7 @@ O seed também cria profissionais fictícios de Assistência Social e Fisioterap
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4, Recharts |
 | Backend | NestJS 11, Passport + JWT, class-validator, Swagger/OpenAPI, Helmet, Throttler |
 | Dados | PostgreSQL, Prisma 7 com adapter `pg`, migrations versionadas |
-| Qualidade | Jest, Supertest, ESLint (type-checked), Prettier, GitHub Actions, Docker |
+| Qualidade | Jest, Supertest, Vitest, Testing Library, ESLint (type-checked), Prettier, GitHub Actions, Docker |
 
 A segurança fica no backend. O frontend esconde do menu o que o perfil não pode usar, mas isso é conveniência, não proteção: toda rota é protegida por um guard global de autenticação, e as rotas restritas também passam pelo `RolesGuard`. A cada requisição o token é conferido contra o banco, então um usuário desativado perde o acesso na hora, e não só quando o token expira.
 
@@ -141,7 +141,7 @@ A autoria e o compartilhamento nominal dão acesso em qualquer nível. Só a aut
 
 | | |
 | --- | --- |
-| Testes | 154 testes unitários e 116 testes e2e (API + PostgreSQL real) |
+| Testes | Backend: 154 unitários e 116 e2e (API + PostgreSQL real). Frontend: 91 testes de lógica e de componentes |
 | API | 65 rotas REST documentadas em OpenAPI (`/docs`) |
 | Autenticação | JWT com usuário revalidado no banco a cada requisição, bcrypt e limite de tentativas no login |
 | Entrada | DTOs com whitelist (campos não declarados são rejeitados), `ParseUUIDPipe`, erros do Prisma convertidos em 404/409 |
@@ -178,6 +178,9 @@ cd backend
 npm test                                  # unitários
 npm run test:e2e                          # e2e: use um DATABASE_URL de banco descartável
 npm run lint:check
+
+cd ../frontend
+npm test                                  # lógica das telas e componentes (Vitest)
 ~~~
 
 ## Histórico

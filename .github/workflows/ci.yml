@@ -55,7 +55,7 @@ jobs:
       - run: npm run build
 
   frontend:
-    name: Frontend (lint, tipos, build)
+    name: Frontend (lint, tipos, testes, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -73,6 +73,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit
+      - run: npm test
       - run: npm run build
 
   docker:

@@ -40,7 +40,7 @@ A configuração global da aplicação (Helmet, CORS, `ValidationPipe`, filtro d
 | API | NestJS 11, Passport + `@nestjs/jwt`, `class-validator`/`class-transformer`, `@nestjs/swagger`, `@nestjs/throttler`, Helmet, bcrypt |
 | Dados | PostgreSQL 17 (Docker) / 16+, Prisma 7.10 com `@prisma/adapter-pg` |
 | Interface | Next.js 16.1, React 19.2, TypeScript 5, Tailwind CSS 4, Recharts, React Three Fiber (logo 3D do login), lucide-react |
-| Testes | Jest 30, ts-jest, Supertest, `jest-mock-extended` |
+| Testes | Backend: Jest 30, ts-jest, Supertest, `jest-mock-extended`. Frontend: Vitest 3, Testing Library, jsdom |
 | Qualidade | ESLint 9 com regras type-checked, Prettier, GitHub Actions |
 
 ## 3. Estrutura de pastas
@@ -316,6 +316,7 @@ Erros inesperados do Prisma viram 500 genérico, sem detalhes internos na respos
 | --- | --- | --- |
 | Unitários (serviços, guards, DTOs, filtro de erros, dashboard) | 154 testes em 21 suítes | `npm test` |
 | E2E (API real + PostgreSQL) | 116 testes em 5 suítes | `npm run test:e2e` |
+| Frontend (lógica das telas e componentes) | 91 testes em 14 arquivos | `npm test` em `frontend/` |
 
 Os testes e2e (`backend/test/`) sobem o `AppModule` real com o mesmo `configureApp` da produção. A cada suíte, eles apagam e repopulam o banco. Por segurança, só rodam se o nome do banco em `DATABASE_URL` contiver `test`:
 
@@ -336,10 +337,19 @@ Cobertura dos e2e:
 
 O dashboard tem testes com fuso fixo em `America/Sao_Paulo`, para garantir que atendimentos noturnos caiam no dia certo.
 
+No frontend, os testes ficam ao lado do código (`*.test.ts(x)`) e rodam com o mesmo fuso fixo. Cobrem:
+
+- datas puras sem deslocamento de fuso, máscara de moeda e tradução de erros da API;
+- montagem dos formulários de prontuário a partir do cadastro e do registro salvo, e o payload enviado à API;
+- documento de impressão do prontuário: escape de HTML, CSP que libera só o script de impressão (o hash é recalculado no teste) e seleção de seções sem injeção;
+- cálculos da agenda (intervalos, navegação, grade do mês) e soma do total arrecadado dos bazares;
+- componentes: seletor de visibilidade, seletor de PDF e busca de beneficiária com debounce;
+- a tela de doações renderizada com a API simulada, incluindo a regressão de edição de doador.
+
 **CI (`.github/workflows/ci.yml`)**, a cada push e pull request:
 
 1. **Backend:** `npm ci`, `lint:check`, `tsc --noEmit`, testes unitários, `prisma migrate deploy` num PostgreSQL 17 de serviço, testes e2e e build.
-2. **Frontend:** `npm ci`, lint, `tsc --noEmit` e build.
+2. **Frontend:** `npm ci`, lint, `tsc --noEmit`, testes (Vitest) e build.
 3. **Docker:** `docker compose up --build --wait` e smoke test (health, login com usuário do seed e página de login).
 
 ## 10. Operação
@@ -368,4 +378,4 @@ Guarde os backups fora do servidor do banco e teste a restauração periodicamen
 - **Token no `localStorage`.** O token JWT fica no `localStorage`, sem refresh token. A mitigação atual é a expiração de 8 horas mais a revalidação do usuário no banco a cada requisição. O próximo passo seria um cookie `httpOnly`.
 - **Vínculo bazar ↔ agendamento por texto.** Esse vínculo é feito por texto em `observacoes`; o ideal é uma chave estrangeira.
 - **Estilos inline no frontend.** As telas maiores já foram divididas em componentes, mas a maioria ainda usa estilos inline em vez de classes Tailwind.
-- **Testes do frontend.** O frontend ainda não tem testes automatizados; ele é coberto indiretamente pelos e2e da API e pelo smoke test do CI.
+- **Testes de ponta a ponta no navegador.** Os testes do frontend cobrem lógica e componentes isolados; os fluxos completos no navegador ainda dependem do smoke test do CI e de verificação manual.
